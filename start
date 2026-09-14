@@ -1,0 +1,435 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const ARCXApp());
+}
+
+class ARCXApp extends StatelessWidget {
+  const ARCXApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'ARCX',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF183B56),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+      ),
+      home: const ARCXHome(),
+    );
+  }
+}
+
+class ARCXHome extends StatefulWidget {
+  const ARCXHome({super.key});
+
+  @override
+  State<ARCXHome> createState() => _ARCXHomeState();
+}
+
+class _ARCXHomeState extends State<ARCXHome> {
+  int selectedIndex = 0;
+
+  final List<ARCXModule> modules = const [
+    ARCXModule(
+      title: 'Field Tools',
+      subtitle: 'ابزارهای میدانی',
+      icon: Icons.straighten,
+    ),
+    ARCXModule(
+      title: 'Projects',
+      subtitle: 'پروژه‌ها',
+      icon: Icons.account_tree_outlined,
+    ),
+    ARCXModule(
+      title: 'Calculators',
+      subtitle: 'محاسبات',
+      icon: Icons.calculate_outlined,
+    ),
+    ARCXModule(
+      title: 'Plans',
+      subtitle: 'طراحی پلان',
+      icon: Icons.architecture_outlined,
+    ),
+    ARCXModule(
+      title: 'Materials',
+      subtitle: 'مصالح و متریال',
+      icon: Icons.inventory_2_outlined,
+    ),
+    ARCXModule(
+      title: 'Documentation',
+      subtitle: 'مستندسازی',
+      icon: Icons.description_outlined,
+    ),
+    ARCXModule(
+      title: 'Finance',
+      subtitle: 'مالی',
+      icon: Icons.account_balance_wallet_outlined,
+    ),
+    ARCXModule(
+      title: 'Intelligence',
+      subtitle: 'هوش معماری',
+      icon: Icons.psychology_outlined,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        titleSpacing: 20,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ARCX',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+              ),
+            ),
+            Text(
+              'Architecture & Engineering Intelligence',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              _showComingSoon(context, 'Search');
+            },
+            icon: const Icon(Icons.search),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+
+      body: SafeArea(
+        child: selectedIndex == 0
+            ? _buildDashboard(context)
+            : _buildModulePage(context, selectedIndex),
+      ),
+
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.work_outline),
+            selectedIcon: Icon(Icons.work),
+            label: 'Projects',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.straighten_outlined),
+            selectedIcon: Icon(Icons.straighten),
+            label: 'Tools',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+            child: _buildStatusCard(context),
+          ),
+        ),
+
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverGrid(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final module = modules[index];
+
+                return _ModuleCard(
+                  module: module,
+                  onTap: () {
+                    _showComingSoon(context, module.title);
+                  },
+                );
+              },
+              childCount: modules.length,
+            ),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.08,
+            ),
+          ),
+        ),
+
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 24),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard(BuildContext context) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer,
+                  ),
+                  child: Icon(
+                    Icons.architecture,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Project Core',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'سیستم معماری و مهندسی ARCX',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.green.withValues(alpha: 0.12),
+                  ),
+                  child: const Text(
+                    'v0.1',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'Foundation initialized',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            LinearProgressIndicator(
+              value: 0.08,
+              minHeight: 7,
+              borderRadius: BorderRadius.circular(10),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Text(
+              'هسته اولیه آماده توسعه ماژول‌هاست.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModulePage(BuildContext context, int index) {
+    String title;
+
+    switch (index) {
+      case 1:
+        title = 'Projects';
+        break;
+      case 2:
+        title = 'Field Tools';
+        break;
+      case 3:
+        title = 'Settings';
+        break;
+      default:
+        title = 'ARCX';
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.construction_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Module foundation ready',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context, String title) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$title module — در مرحله توسعه'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+class ARCXModule {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const ARCXModule({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+}
+
+class _ModuleCard extends StatelessWidget {
+  final ARCXModule module;
+  final VoidCallback onTap;
+
+  const _ModuleCard({
+    required this.module,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  color: colorScheme.primaryContainer,
+                ),
+                child: Icon(
+                  module.icon,
+                  color: colorScheme.onPrimaryContainer,
+                  size: 25,
+                ),
+              ),
+
+              const Spacer(),
+
+              Text(
+                module.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w750,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                module.subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
