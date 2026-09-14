@@ -5,6 +5,7 @@ import 'material_controller.dart';
 import 'models/finance_transaction.dart';
 import 'models/material.dart';
 import 'models/project.dart';
+import 'services/project_context_controller.dart';
 import 'services/storage_service.dart';
 
 Future<void> main() async {
@@ -18,7 +19,7 @@ Future<void> main() async {
 /* ============================================================
    ARCX
    Architecture & Engineering Intelligence
-   Foundation v0.2
+   Foundation v0.3
    ============================================================ */
 
 class ARCXApp extends StatelessWidget {
@@ -67,90 +68,6 @@ class ARCXApp extends StatelessWidget {
 }
 
 /* ============================================================
-   DATA MODELS
-   ============================================================ */
-
-class Project {
-  final String id;
-  String name;
-  String location;
-  String category;
-  String status;
-  final DateTime createdAt;
-  final List<Measurement> measurements;
-  final List<NoteItem> notes;
-
-  Project({
-    required this.id,
-    required this.name,
-    required this.location,
-    required this.category,
-    this.status = 'Active',
-    DateTime? createdAt,
-    List<Measurement>? measurements,
-    List<NoteItem>? notes,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        measurements = measurements ?? [],
-        notes = notes ?? [];
-}
-
-class Measurement {
-  final String type;
-  final double value;
-  final String unit;
-  final DateTime date;
-
-  Measurement({
-    required this.type,
-    required this.value,
-    required this.unit,
-    DateTime? date,
-  }) : date = date ?? DateTime.now();
-}
-
-class NoteItem {
-  final String title;
-  final String text;
-  final DateTime date;
-
-  NoteItem({
-    required this.title,
-    required this.text,
-    DateTime? date,
-  }) : date = date ?? DateTime.now();
-}
-
-class FinanceTransaction {
-  final String title;
-  final double amount;
-  final bool income;
-  final bool projectRelated;
-  final DateTime date;
-
-  FinanceTransaction({
-    required this.title,
-    required this.amount,
-    required this.income,
-    required this.projectRelated,
-    DateTime? date,
-  }) : date = date ?? DateTime.now();
-}
-
-class MaterialItem {
-  final String name;
-  final String category;
-  final String unit;
-  double price;
-
-  MaterialItem({
-    required this.name,
-    required this.category,
-    required this.unit,
-    required this.price,
-  });
-}
-
-/* ============================================================
    ROOT
    ============================================================ */
 
@@ -164,121 +81,208 @@ class ARCXRoot extends StatefulWidget {
 class _ARCXRootState extends State<ARCXRoot> {
   int tab = 0;
 
-  final List<Project> projects = [
-    Project(
-      id: 'ARCX-001',
-      name: 'Demo Architecture Project',
-      location: 'Tehran',
+  final projectController =
+      ProjectContextController.instance;
+
+  final financeController =
+      FinanceController.instance;
+
+  final materialController =
+      MaterialController.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+  }
+
+  Future<void> _initializeControllers() async {
+    await projectController.loadProjects();
+    await financeController.load();
+    await materialController.load();
+
+    if (materialController.materials.isEmpty) {
+      await _createDefaultMaterials();
+    }
+
+    if (projectController.projects.isEmpty) {
+      await projectController.createProject(
+        name: 'Demo Architecture Project',
+        location: 'Tehran',
+        category: 'Architecture',
+      );
+    }
+  }
+
+  Future<void> _createDefaultMaterials() async {
+    final defaults = [
+      MaterialItem(
+        id: 'MAT-CONCRETE',
+        name: 'Concrete',
+        category: 'Structure',
+        unit: 'm³',
+        price: 0,
+      ),
+      MaterialItem(
+        id: 'MAT-STEEL',
+        name: 'Steel',
+        category: 'Structure',
+        unit: 'kg',
+        price: 0,
+      ),
+      MaterialItem(
+        id: 'MAT-MDF',
+        name: 'MDF',
+        category: 'Interior',
+        unit: 'sheet',
+        price: 0,
+      ),
+    ];
+
+    for (final material in defaults) {
+      await materialController.save(material);
+    }
+  }
+
+  List<Measurement> get allMeasurements {
+    return projectController.projects
+        .expand((project) => project.measurements)
+        .toList();
+  }
+
+  Future<void> addProject({
+    required String name,
+    required String location,
+  }) async {
+    await projectController.createProject(
+      name: name,
+      location: location,
       category: 'Architecture',
-    ),
-  ];
-
-  final List<Measurement> globalMeasurements = [];
-
-  final List<FinanceTransaction> transactions = [];
-
-  final List<MaterialItem> materials = [
-    MaterialItem(
-      name: 'Concrete',
-      category: 'Structure',
-      unit: 'm³',
-      price: 0,
-    ),
-    MaterialItem(
-      name: 'Steel',
-      category: 'Structure',
-      unit: 'kg',
-      price: 0,
-    ),
-    MaterialItem(
-      name: 'MDF',
-      category: 'Interior',
-      unit: 'sheet',
-      price: 0,
-    ),
-  ];
-
-  void addProject(Project project) {
-    setState(() {
-      projects.add(project);
-    });
+    );
   }
 
-  void deleteProject(Project project) {
-    setState(() {
-      projects.remove(project);
-    });
+  Future<void> deleteProject(Project project) async {
+    await projectController.deleteProject(project.id);
   }
 
-  void addMeasurement(Measurement measurement) {
-    setState(() {
-      globalMeasurements.add(measurement);
-    });
-  }
+  Future<void> saveMeasurement(
+    Measurement measurement,
+  ) async {
+    final activeProject =
+        projectController.activeProject;
 
-  void addTransaction(FinanceTransaction transaction) {
-    setState(() {
-      transactions.add(transaction);
-    });
+    if (activeProject == null) {
+      if (projectController.projects.isNotEmpty) {
+        await projectController.selectProject(
+          projectController.projects.first.id,
+        );
+      }
+    }
+
+    final project =
+        projectController.activeProject;
+
+    if (project == null) {
+      return;
+    }
+
+    await projectController.addMeasurement(
+      projectId: project.id,
+      type: measurement.type,
+      value: measurement.value,
+      unit: measurement.unit,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      DashboardPage(
-        projects: projects,
-        measurements: globalMeasurements,
-        onModuleTap: openModule,
-      ),
-      ProjectsPage(
-        projects: projects,
-        onCreate: addProject,
-        onDelete: deleteProject,
-      ),
-      FieldToolsPage(
-        measurements: globalMeasurements,
-        onSave: addMeasurement,
-      ),
-      const SettingsPage(),
-    ];
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        projectController,
+        financeController,
+        materialController,
+      ]),
+      builder: (context, _) {
+        final projects =
+            projectController.projects;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        body: SafeArea(
-          child: pages[tab],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: tab,
-          onDestinationSelected: (value) {
-            setState(() {
-              tab = value;
-            });
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'خانه',
+        final measurements =
+            allMeasurements;
+
+        final pages = [
+          DashboardPage(
+            projects: projects,
+            measurements: measurements,
+            onModuleTap: openModule,
+          ),
+          ProjectsPage(
+            projects: projects,
+            onCreate: addProject,
+            onDelete: deleteProject,
+          ),
+          FieldToolsPage(
+            measurements: measurements,
+            onSave: saveMeasurement,
+          ),
+          const SettingsPage(),
+        ];
+
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: SafeArea(
+              child: pages[tab],
             ),
-            NavigationDestination(
-              icon: Icon(Icons.folder_outlined),
-              selectedIcon: Icon(Icons.folder),
-              label: 'پروژه‌ها',
+            bottomNavigationBar:
+                NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: (value) {
+                setState(() {
+                  tab = value;
+                });
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.dashboard_outlined,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.dashboard,
+                  ),
+                  label: 'خانه',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.folder_outlined,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.folder,
+                  ),
+                  label: 'پروژه‌ها',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.straighten_outlined,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.straighten,
+                  ),
+                  label: 'ابزار',
+                ),
+                NavigationDestination(
+                  icon: Icon(
+                    Icons.settings_outlined,
+                  ),
+                  selectedIcon: Icon(
+                    Icons.settings,
+                  ),
+                  label: 'تنظیمات',
+                ),
+              ],
             ),
-            NavigationDestination(
-              icon: Icon(Icons.straighten_outlined),
-              selectedIcon: Icon(Icons.straighten),
-              label: 'ابزار',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: 'تنظیمات',
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -288,14 +292,14 @@ class _ARCXRootState extends State<ARCXRoot> {
     switch (module) {
       case 'Field Tools':
         page = FieldToolsPage(
-          measurements: globalMeasurements,
-          onSave: addMeasurement,
+          measurements: allMeasurements,
+          onSave: saveMeasurement,
         );
         break;
 
       case 'Projects':
         page = ProjectsPage(
-          projects: projects,
+          projects: projectController.projects,
           onCreate: addProject,
           onDelete: deleteProject,
         );
@@ -310,17 +314,21 @@ class _ARCXRootState extends State<ARCXRoot> {
         break;
 
       case 'Materials':
-        page = MaterialsPage(materials: materials);
+        page = MaterialsPage(
+          controller: materialController,
+        );
         break;
 
       case 'Documentation':
-        page = DocumentationPage(projects: projects);
+        page = DocumentationPage(
+          projects: projectController.projects,
+        );
         break;
 
       case 'Finance':
         page = FinancePage(
-          transactions: transactions,
-          onAdd: addTransaction,
+          controller: financeController,
+          projects: projectController.projects,
         );
         break;
 
@@ -444,7 +452,8 @@ class DashboardPage extends StatelessWidget {
                   onPressed: () {
                     showSearch(
                       context: context,
-                      delegate: ModuleSearchDelegate(
+                      delegate:
+                          ModuleSearchDelegate(
                         modules: modules,
                         onSelected: onModuleTap,
                       ),
@@ -470,7 +479,8 @@ class DashboardPage extends StatelessWidget {
             horizontal: 16,
           ),
           sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
+            delegate:
+                SliverChildBuilderDelegate(
               (context, index) {
                 final module = modules[index];
 
@@ -479,7 +489,9 @@ class DashboardPage extends StatelessWidget {
                   subtitle: module.subtitle,
                   icon: module.icon,
                   onTap: () =>
-                      onModuleTap(module.title),
+                      onModuleTap(
+                    module.title,
+                  ),
                 );
               },
               childCount: modules.length,
@@ -580,12 +592,13 @@ class _ProjectOverview extends StatelessWidget {
               children: [
                 _Stat(
                   title: 'پروژه',
-                  value: projects.length.toString(),
+                  value: projects.length
+                      .toString(),
                 ),
                 _Stat(
                   title: 'اندازه‌گیری',
-                  value:
-                      measurements.length.toString(),
+                  value: measurements.length
+                      .toString(),
                 ),
                 const _Stat(
                   title: 'ماژول',
@@ -602,7 +615,7 @@ class _ProjectOverview extends StatelessWidget {
             const Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'ARCX foundation v0.2',
+                'ARCX foundation v0.3',
                 style: TextStyle(
                   color: Colors.white54,
                   fontSize: 10,
@@ -627,11 +640,14 @@ class _VersionBadge extends StatelessWidget {
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: .14),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.green.withValues(
+          alpha: .14,
+        ),
+        borderRadius:
+            BorderRadius.circular(20),
       ),
       child: const Text(
-        'v0.2',
+        'v0.3',
         style: TextStyle(
           color: Colors.greenAccent,
           fontSize: 11,
@@ -751,8 +767,11 @@ class _ModuleCard extends StatelessWidget {
 
 class ProjectsPage extends StatelessWidget {
   final List<Project> projects;
-  final ValueChanged<Project> onCreate;
-  final ValueChanged<Project> onDelete;
+  final Future<void> Function({
+    required String name,
+    required String location,
+  }) onCreate;
+  final Future<void> Function(Project) onDelete;
 
   const ProjectsPage({
     super.key,
@@ -768,20 +787,24 @@ class ProjectsPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('ساخت پروژه جدید'),
+        title: const Text(
+          'ساخت پروژه جدید',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: name,
-              decoration: const InputDecoration(
+              decoration:
+                  const InputDecoration(
                 labelText: 'نام پروژه',
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: location,
-              decoration: const InputDecoration(
+              decoration:
+                  const InputDecoration(
                 labelText: 'موقعیت پروژه',
               ),
             ),
@@ -794,19 +817,19 @@ class ProjectsPage extends StatelessWidget {
             child: const Text('انصراف'),
           ),
           FilledButton(
-            onPressed: () {
-              if (name.text.trim().isEmpty) return;
+            onPressed: () async {
+              if (name.text.trim().isEmpty) {
+                return;
+              }
 
-              onCreate(
-                Project(
-                  id: 'ARCX-${DateTime.now().millisecondsSinceEpoch}',
-                  name: name.text.trim(),
-                  location: location.text.trim(),
-                  category: 'Architecture',
-                ),
+              await onCreate(
+                name: name.text.trim(),
+                location: location.text.trim(),
               );
 
-              Navigator.pop(context);
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text('ساخت پروژه'),
           ),
@@ -839,12 +862,14 @@ class ProjectsPage extends StatelessWidget {
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding:
+                  const EdgeInsets.all(16),
               itemCount: projects.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: 10),
               itemBuilder: (_, index) {
-                final project = projects[index];
+                final project =
+                    projects[index];
 
                 return Card(
                   child: ListTile(
@@ -853,12 +878,15 @@ class ProjectsPage extends StatelessWidget {
                     leading: Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(
+                      decoration:
+                          BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
                             .primaryContainer,
                         borderRadius:
-                            BorderRadius.circular(14),
+                            BorderRadius.circular(
+                          14,
+                        ),
                       ),
                       child: const Icon(
                         Icons.architecture,
@@ -866,23 +894,33 @@ class ProjectsPage extends StatelessWidget {
                     ),
                     title: Text(
                       project.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                     subtitle: Text(
                       '${project.location} • ${project.category}',
                     ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'delete') {
-                          onDelete(project);
+                    trailing:
+                        PopupMenuButton<String>(
+                      onSelected:
+                          (value) async {
+                        if (value ==
+                            'delete') {
+                          await onDelete(
+                            project,
+                          );
                         }
                       },
-                      itemBuilder: (_) => const [
+                      itemBuilder: (_) =>
+                          const [
                         PopupMenuItem(
                           value: 'delete',
-                          child: Text('حذف پروژه'),
+                          child: Text(
+                            'حذف پروژه',
+                          ),
                         ),
                       ],
                     ),
@@ -905,7 +943,12 @@ class ProjectsPage extends StatelessWidget {
   }
 }
 
-class ProjectDetailPage extends StatefulWidget {
+/* ============================================================
+   PROJECT DETAIL
+   ============================================================ */
+
+class ProjectDetailPage
+    extends StatefulWidget {
   final Project project;
 
   const ProjectDetailPage({
@@ -920,7 +963,20 @@ class ProjectDetailPage extends StatefulWidget {
 
 class _ProjectDetailPageState
     extends State<ProjectDetailPage> {
-  final noteController = TextEditingController();
+  final noteController =
+      TextEditingController();
+
+  final controller =
+      ProjectContextController.instance;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller.selectProject(
+      widget.project.id,
+    );
+  }
 
   @override
   void dispose() {
@@ -928,116 +984,140 @@ class _ProjectDetailPageState
     super.dispose();
   }
 
-  void addNote() {
-    if (noteController.text.trim().isEmpty) return;
+  Future<void> addNote() async {
+    final text =
+        noteController.text.trim();
 
-    setState(() {
-      widget.project.notes.add(
-        NoteItem(
-          title: 'یادداشت پروژه',
-          text: noteController.text.trim(),
-        ),
-      );
-    });
+    if (text.isEmpty) {
+      return;
+    }
+
+    await controller.addNote(
+      projectId: widget.project.id,
+      title: 'یادداشت پروژه',
+      text: text,
+    );
 
     noteController.clear();
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final project = widget.project;
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final project =
+            controller.activeProject ??
+                widget.project;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(project.name),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _InfoCard(
-            title: 'اطلاعات پروژه',
-            children: [
-              _InfoRow(
-                label: 'شناسه',
-                value: project.id,
-              ),
-              _InfoRow(
-                label: 'موقعیت',
-                value: project.location,
-              ),
-              _InfoRow(
-                label: 'نوع',
-                value: project.category,
-              ),
-              _InfoRow(
-                label: 'وضعیت',
-                value: project.status,
-              ),
-            ],
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(project.name),
           ),
-          const SizedBox(height: 14),
-          _InfoCard(
-            title: 'اندازه‌گیری‌ها',
+          body: ListView(
+            padding:
+                const EdgeInsets.all(16),
             children: [
-              if (project.measurements.isEmpty)
-                const Text(
-                  'هنوز اندازه‌گیری‌ای ثبت نشده.',
-                  style: TextStyle(
-                    color: Colors.white54,
+              _InfoCard(
+                title: 'اطلاعات پروژه',
+                children: [
+                  _InfoRow(
+                    label: 'شناسه',
+                    value: project.id,
                   ),
-                )
-              else
-                ...project.measurements.map(
-                  (m) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.straighten,
+                  _InfoRow(
+                    label: 'موقعیت',
+                    value: project.location,
+                  ),
+                  _InfoRow(
+                    label: 'نوع',
+                    value: project.category,
+                  ),
+                  _InfoRow(
+                    label: 'وضعیت',
+                    value: project.status,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _InfoCard(
+                title: 'اندازه‌گیری‌ها',
+                children: [
+                  if (project.measurements
+                      .isEmpty)
+                    const Text(
+                      'هنوز اندازه‌گیری‌ای ثبت نشده.',
+                      style: TextStyle(
+                        color: Colors.white54,
+                      ),
+                    )
+                  else
+                    ...project.measurements
+                        .map(
+                      (m) => ListTile(
+                        contentPadding:
+                            EdgeInsets.zero,
+                        leading:
+                            const Icon(
+                          Icons.straighten,
+                        ),
+                        title: Text(m.type),
+                        trailing: Text(
+                          '${m.value} ${m.unit}',
+                        ),
+                      ),
                     ),
-                    title: Text(m.type),
-                    trailing: Text(
-                      '${m.value} ${m.unit}',
+                ],
+              ),
+              const SizedBox(height: 14),
+              _InfoCard(
+                title: 'یادداشت‌ها',
+                children: [
+                  TextField(
+                    controller:
+                        noteController,
+                    maxLines: 3,
+                    decoration:
+                        const InputDecoration(
+                      hintText:
+                          'یادداشت پروژه را وارد کنید...',
                     ),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _InfoCard(
-            title: 'یادداشت‌ها',
-            children: [
-              TextField(
-                controller: noteController,
-                maxLines: 3,
-                decoration:
-                    const InputDecoration(
-                  hintText:
-                      'یادداشت پروژه را وارد کنید...',
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: addNote,
-                  icon: const Icon(Icons.add),
-                  label: const Text(
-                    'ثبت یادداشت',
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: addNote,
+                      icon: const Icon(
+                        Icons.add,
+                      ),
+                      label: const Text(
+                        'ثبت یادداشت',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...project.notes.reversed.map(
-                (note) => Card(
-                  child: ListTile(
-                    title: Text(note.title),
-                    subtitle: Text(note.text),
+                  const SizedBox(height: 10),
+                  ...project.notes.reversed
+                      .map(
+                    (note) => Card(
+                      child: ListTile(
+                        title:
+                            Text(note.title),
+                        subtitle:
+                            Text(note.text),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1046,9 +1126,12 @@ class _ProjectDetailPageState
    FIELD TOOLS
    ============================================================ */
 
-class FieldToolsPage extends StatefulWidget {
+class FieldToolsPage
+    extends StatefulWidget {
   final List<Measurement> measurements;
-  final ValueChanged<Measurement> onSave;
+  final Future<void> Function(
+    Measurement,
+  ) onSave;
 
   const FieldToolsPage({
     super.key,
@@ -1063,10 +1146,17 @@ class FieldToolsPage extends StatefulWidget {
 
 class _FieldToolsPageState
     extends State<FieldToolsPage> {
-  final distance = TextEditingController();
-  final angle = TextEditingController();
-  final length = TextEditingController();
-  final width = TextEditingController();
+  final distance =
+      TextEditingController();
+
+  final angle =
+      TextEditingController();
+
+  final length =
+      TextEditingController();
+
+  final width =
+      TextEditingController();
 
   String distanceUnit = 'm';
 
@@ -1079,16 +1169,18 @@ class _FieldToolsPageState
     super.dispose();
   }
 
-  void saveDistance() {
+  Future<void> saveDistance() async {
     final value =
         double.tryParse(distance.text);
 
     if (value == null) {
-      _message('مقدار فاصله صحیح نیست.');
+      _message(
+        'مقدار فاصله صحیح نیست.',
+      );
       return;
     }
 
-    widget.onSave(
+    await widget.onSave(
       Measurement(
         type: 'Distance',
         value: value,
@@ -1097,10 +1189,12 @@ class _FieldToolsPageState
     );
 
     distance.clear();
-    _message('اندازه‌گیری ذخیره شد.');
+    _message(
+      'اندازه‌گیری ذخیره شد.',
+    );
   }
 
-  void saveAngle() {
+  Future<void> saveAngle() async {
     final value =
         double.tryParse(angle.text);
 
@@ -1109,7 +1203,7 @@ class _FieldToolsPageState
       return;
     }
 
-    widget.onSave(
+    await widget.onSave(
       Measurement(
         type: 'Angle',
         value: value,
@@ -1122,11 +1216,16 @@ class _FieldToolsPageState
   }
 
   void calculateArea() {
-    final l = double.tryParse(length.text);
-    final w = double.tryParse(width.text);
+    final l =
+        double.tryParse(length.text);
+
+    final w =
+        double.tryParse(width.text);
 
     if (l == null || w == null) {
-      _message('طول و عرض را وارد کنید.');
+      _message(
+        'طول و عرض را وارد کنید.',
+      );
       return;
     }
 
@@ -1135,17 +1234,21 @@ class _FieldToolsPageState
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('نتیجه محاسبه'),
+        title:
+            const Text('نتیجه محاسبه'),
         content: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             const Text('مساحت'),
             const SizedBox(height: 10),
             Text(
               '${result.toStringAsFixed(2)} m²',
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 30,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
           ],
@@ -1162,10 +1265,12 @@ class _FieldToolsPageState
   }
 
   void _message(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(text),
-        behavior: SnackBarBehavior.floating,
+        behavior:
+            SnackBarBehavior.floating,
       ),
     );
   }
@@ -1182,7 +1287,8 @@ class _FieldToolsPageState
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: [
           const Text(
             'Field Tools',
@@ -1202,14 +1308,16 @@ class _FieldToolsPageState
           _ToolCard(
             icon: Icons.straighten,
             title: 'Distance',
-            subtitle: 'اندازه‌گیری فاصله',
+            subtitle:
+                'اندازه‌گیری فاصله',
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: distance,
                     keyboardType:
-                        const TextInputType.numberWithOptions(
+                        const TextInputType
+                            .numberWithOptions(
                       decimal: true,
                     ),
                     decoration:
@@ -1218,7 +1326,9 @@ class _FieldToolsPageState
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 8,
+                ),
                 DropdownButton<String>(
                   value: distanceUnit,
                   items: const [
@@ -1238,21 +1348,26 @@ class _FieldToolsPageState
                   onChanged: (v) {
                     if (v != null) {
                       setState(() {
-                        distanceUnit = v;
+                        distanceUnit =
+                            v;
                       });
                     }
                   },
                 ),
                 IconButton(
-                  onPressed: saveDistance,
-                  icon: const Icon(Icons.save),
+                  onPressed:
+                      saveDistance,
+                  icon: const Icon(
+                    Icons.save,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           _ToolCard(
-            icon: Icons.change_history,
+            icon:
+                Icons.change_history,
             title: 'Angle',
             subtitle: 'زاویه‌یاب',
             child: Row(
@@ -1261,7 +1376,8 @@ class _FieldToolsPageState
                   child: TextField(
                     controller: angle,
                     keyboardType:
-                        const TextInputType.numberWithOptions(
+                        const TextInputType
+                            .numberWithOptions(
                       decimal: true,
                     ),
                     decoration:
@@ -1270,10 +1386,13 @@ class _FieldToolsPageState
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(
+                  width: 10,
+                ),
                 FilledButton(
                   onPressed: saveAngle,
-                  child: const Text('ثبت'),
+                  child:
+                      const Text('ثبت'),
                 ),
               ],
             ),
@@ -1291,37 +1410,48 @@ class _FieldToolsPageState
                       child: TextField(
                         controller: length,
                         keyboardType:
-                            const TextInputType.numberWithOptions(
+                            const TextInputType
+                                .numberWithOptions(
                           decimal: true,
                         ),
                         decoration:
                             const InputDecoration(
-                          labelText: 'طول (m)',
+                          labelText:
+                              'طول (m)',
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(
+                      width: 10,
+                    ),
                     Expanded(
                       child: TextField(
                         controller: width,
                         keyboardType:
-                            const TextInputType.numberWithOptions(
+                            const TextInputType
+                                .numberWithOptions(
                           decimal: true,
                         ),
                         decoration:
                             const InputDecoration(
-                          labelText: 'عرض (m)',
+                          labelText:
+                              'عرض (m)',
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(
+                  height: 10,
+                ),
                 SizedBox(
-                  width: double.infinity,
+                  width:
+                      double.infinity,
                   child: FilledButton(
-                    onPressed: calculateArea,
-                    child: const Text(
+                    onPressed:
+                        calculateArea,
+                    child:
+                        const Text(
                       'محاسبه',
                     ),
                   ),
@@ -1331,53 +1461,66 @@ class _FieldToolsPageState
           ),
           const SizedBox(height: 12),
           const _ToolCard(
-            icon: Icons.water_drop_outlined,
+            icon: Icons
+                .water_drop_outlined,
             title: 'Bubble Level',
-            subtitle: 'تراز حباب با سنسور دستگاه',
+            subtitle:
+                'تراز حباب با سنسور دستگاه',
           ),
           const SizedBox(height: 12),
           const _ToolCard(
-            icon: Icons.screen_rotation_outlined,
+            icon: Icons
+                .screen_rotation_outlined,
             title: 'Inclinometer',
             subtitle: 'شیب‌سنج',
           ),
           const SizedBox(height: 12),
           const _ToolCard(
-            icon: Icons.camera_alt_outlined,
+            icon: Icons
+                .camera_alt_outlined,
             title: 'Camera Measure',
-            subtitle: 'اندازه‌گیری با دوربین',
+            subtitle:
+                'اندازه‌گیری با دوربین',
           ),
           const SizedBox(height: 12),
           const _ToolCard(
-            icon: Icons.architecture_outlined,
+            icon: Icons
+                .architecture_outlined,
             title: 'Plan Sketch',
-            subtitle: 'ترسیم سریع پلان',
+            subtitle:
+                'ترسیم سریع پلان',
           ),
-          if (widget.measurements.isNotEmpty) ...[
+          if (widget.measurements
+              .isNotEmpty) ...[
             const SizedBox(height: 25),
             const Text(
               'آخرین اندازه‌گیری‌ها',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
             const SizedBox(height: 10),
-            ...widget.measurements.reversed
+            ...widget.measurements
+                .reversed
                 .take(10)
                 .map(
-                  (m) => Card(
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.analytics_outlined,
-                      ),
-                      title: Text(m.type),
-                      trailing: Text(
-                        '${m.value} ${m.unit}',
-                      ),
-                    ),
+              (m) => Card(
+                child: ListTile(
+                  leading:
+                      const Icon(
+                    Icons
+                        .analytics_outlined,
+                  ),
+                  title:
+                      Text(m.type),
+                  trailing: Text(
+                    '${m.value} ${m.unit}',
                   ),
                 ),
+              ),
+            ),
           ],
         ],
       ),
@@ -1385,7 +1528,8 @@ class _FieldToolsPageState
   }
 }
 
-class _ToolCard extends StatelessWidget {
+class _ToolCard
+    extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -1402,7 +1546,8 @@ class _ToolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -1412,32 +1557,46 @@ class _ToolCard extends StatelessWidget {
                 Container(
                   width: 45,
                   height: 45,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
+                  decoration:
+                      BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    )
                         .colorScheme
                         .primaryContainer,
                     borderRadius:
-                        BorderRadius.circular(13),
+                        BorderRadius.circular(
+                      13,
+                    ),
                   ),
                   child: Icon(icon),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(
+                  width: 12,
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(
+                        height: 3,
+                      ),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          color: Colors.white54,
+                        style:
+                            const TextStyle(
+                          color:
+                              Colors.white54,
                           fontSize: 10,
                         ),
                       ),
@@ -1447,7 +1606,9 @@ class _ToolCard extends StatelessWidget {
               ],
             ),
             if (child != null) ...[
-              const SizedBox(height: 15),
+              const SizedBox(
+                height: 15,
+              ),
               child!,
             ],
           ],
@@ -1461,55 +1622,69 @@ class _ToolCard extends StatelessWidget {
    CALCULATORS
    ============================================================ */
 
-class CalculatorsPage extends StatelessWidget {
-  const CalculatorsPage({super.key});
+class CalculatorsPage
+    extends StatelessWidget {
+  const CalculatorsPage({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('محاسبات'),
+        title:
+            const Text('محاسبات'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: const [
           Text(
             'Calculators',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           SizedBox(height: 20),
           _CalculatorTile(
             icon: Icons.square_foot,
             title: 'مساحت',
-            subtitle: 'مستطیل، مثلث، دایره و فضاها',
+            subtitle:
+                'مستطیل، مثلث، دایره و فضاها',
           ),
           _CalculatorTile(
-            icon: Icons.view_in_ar_outlined,
+            icon: Icons
+                .view_in_ar_outlined,
             title: 'حجم',
-            subtitle: 'محاسبه حجم عناصر هندسی',
+            subtitle:
+                'محاسبه حجم عناصر هندسی',
           ),
           _CalculatorTile(
             icon: Icons.percent,
             title: 'درصد',
-            subtitle: 'درصد و نسبت',
+            subtitle:
+                'درصد و نسبت',
           ),
           _CalculatorTile(
             icon: Icons.swap_horiz,
             title: 'تبدیل واحد',
-            subtitle: 'طول، مساحت، حجم و وزن',
+            subtitle:
+                'طول، مساحت، حجم و وزن',
           ),
           _CalculatorTile(
             icon: Icons.architecture,
-            title: 'محاسبات معماری',
-            subtitle: 'سطح اشغال، تراکم و زیربنا',
+            title:
+                'محاسبات معماری',
+            subtitle:
+                'سطح اشغال، تراکم و زیربنا',
           ),
           _CalculatorTile(
             icon: Icons.construction,
             title: 'مصالح',
-            subtitle: 'برآورد اولیه مصرف مصالح',
+            subtitle:
+                'برآورد اولیه مصرف مصالح',
           ),
         ],
       ),
@@ -1517,7 +1692,8 @@ class CalculatorsPage extends StatelessWidget {
   }
 }
 
-class _CalculatorTile extends StatelessWidget {
+class _CalculatorTile
+    extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -1531,20 +1707,31 @@ class _CalculatorTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin:
+          const EdgeInsets.only(
+        bottom: 10,
+      ),
       child: ListTile(
         contentPadding:
             const EdgeInsets.all(12),
-        leading: Icon(icon, size: 28),
+        leading: Icon(
+          icon,
+          size: 28,
+        ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
+          style:
+              const TextStyle(
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
-        subtitle: Text(subtitle),
+        subtitle:
+            Text(subtitle),
         trailing:
-            const Icon(Icons.chevron_left),
+            const Icon(
+          Icons.chevron_left,
+        ),
       ),
     );
   }
@@ -1554,23 +1741,29 @@ class _CalculatorTile extends StatelessWidget {
    PLANS
    ============================================================ */
 
-class PlansPage extends StatelessWidget {
-  const PlansPage({super.key});
+class PlansPage
+    extends StatelessWidget {
+  const PlansPage({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('طراحی پلان'),
+        title:
+            const Text('طراحی پلان'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: const [
           Text(
             'Plan Studio',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           SizedBox(height: 8),
@@ -1584,32 +1777,40 @@ class PlansPage extends StatelessWidget {
           _CalculatorTile(
             icon: Icons.grid_4x4,
             title: 'Grid',
-            subtitle: 'شبکه ترسیم',
+            subtitle:
+                'شبکه ترسیم',
           ),
           _CalculatorTile(
             icon: Icons.crop_square,
             title: 'Walls',
-            subtitle: 'ترسیم دیوارها',
+            subtitle:
+                'ترسیم دیوارها',
           ),
           _CalculatorTile(
-            icon: Icons.door_front_door_outlined,
+            icon: Icons
+                .door_front_door_outlined,
             title: 'Doors',
-            subtitle: 'درها و بازشوها',
+            subtitle:
+                'درها و بازشوها',
           ),
           _CalculatorTile(
-            icon: Icons.window_outlined,
+            icon: Icons
+                .window_outlined,
             title: 'Windows',
-            subtitle: 'پنجره‌ها',
+            subtitle:
+                'پنجره‌ها',
           ),
           _CalculatorTile(
             icon: Icons.straighten,
             title: 'Dimensions',
-            subtitle: 'اندازه‌گذاری',
+            subtitle:
+                'اندازه‌گذاری',
           ),
           _CalculatorTile(
             icon: Icons.edit,
             title: 'Sketch',
-            subtitle: 'ترسیم آزاد',
+            subtitle:
+                'ترسیم آزاد',
           ),
         ],
       ),
@@ -1621,66 +1822,99 @@ class PlansPage extends StatelessWidget {
    MATERIALS
    ============================================================ */
 
-class MaterialsPage extends StatelessWidget {
-  final List<MaterialItem> materials;
+class MaterialsPage
+    extends StatelessWidget {
+  final MaterialController controller;
 
   const MaterialsPage({
     super.key,
-    required this.materials,
+    required this.controller,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('مصالح و متریال'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Materials',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final materials =
+            controller.materials;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'مصالح و متریال',
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'بانک مصالح و اطلاعات متریال',
-            style: TextStyle(
-              color: Colors.white54,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ...materials.map(
-            (material) => Card(
-              margin:
-                  const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: const Icon(
-                  Icons.layers_outlined,
-                ),
-                title: Text(
-                  material.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                subtitle: Text(
-                  '${material.category} • ${material.unit}',
-                ),
-                trailing: Text(
-                  material.price == 0
-                      ? '—'
-                      : material.price
-                          .toStringAsFixed(0),
+          body: ListView(
+            padding:
+                const EdgeInsets.all(16),
+            children: [
+              const Text(
+                'Materials',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+              const Text(
+                'بانک مصالح و اطلاعات متریال',
+                style: TextStyle(
+                  color: Colors.white54,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (materials.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding:
+                        EdgeInsets.all(30),
+                    child: Text(
+                      'هنوز متریالی ثبت نشده است.',
+                    ),
+                  ),
+                )
+              else
+                ...materials.map(
+                  (material) => Card(
+                    margin:
+                        const EdgeInsets.only(
+                      bottom: 10,
+                    ),
+                    child: ListTile(
+                      leading:
+                          const Icon(
+                        Icons
+                            .layers_outlined,
+                      ),
+                      title: Text(
+                        material.name,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${material.category} • ${material.unit}'
+                        '${material.brand.isNotEmpty ? ' • ${material.brand}' : ''}',
+                      ),
+                      trailing: Text(
+                        material.price == 0
+                            ? '—'
+                            : material.price
+                                .toStringAsFixed(
+                                0,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1689,7 +1923,8 @@ class MaterialsPage extends StatelessWidget {
    DOCUMENTATION
    ============================================================ */
 
-class DocumentationPage extends StatelessWidget {
+class DocumentationPage
+    extends StatelessWidget {
   final List<Project> projects;
 
   const DocumentationPage({
@@ -1701,43 +1936,54 @@ class DocumentationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مستندسازی'),
+        title:
+            const Text('مستندسازی'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: [
           const Text(
             'Documentation',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           const SizedBox(height: 20),
-          _CalculatorTile(
-            icon: Icons.photo_library_outlined,
+          const _CalculatorTile(
+            icon: Icons
+                .photo_library_outlined,
             title: 'Site Photos',
-            subtitle: 'تصاویر کارگاه و پروژه',
+            subtitle:
+                'تصاویر کارگاه و پروژه',
           ),
-          _CalculatorTile(
-            icon: Icons.description_outlined,
+          const _CalculatorTile(
+            icon: Icons
+                .description_outlined,
             title: 'Documents',
-            subtitle: 'اسناد پروژه',
+            subtitle:
+                'اسناد پروژه',
           ),
-          _CalculatorTile(
-            icon: Icons.note_alt_outlined,
+          const _CalculatorTile(
+            icon: Icons
+                .note_alt_outlined,
             title: 'Notes',
-            subtitle: 'یادداشت‌های پروژه',
+            subtitle:
+                'یادداشت‌های پروژه',
           ),
-          _CalculatorTile(
+          const _CalculatorTile(
             icon: Icons.checklist,
             title: 'Checklists',
-            subtitle: 'چک‌لیست‌های اجرایی',
+            subtitle:
+                'چک‌لیست‌های اجرایی',
           ),
           const SizedBox(height: 20),
           Text(
             'پروژه‌های قابل مستندسازی: ${projects.length}',
-            style: const TextStyle(
+            style:
+                const TextStyle(
               color: Colors.white54,
             ),
           ),
@@ -1751,14 +1997,15 @@ class DocumentationPage extends StatelessWidget {
    FINANCE
    ============================================================ */
 
-class FinancePage extends StatefulWidget {
-  final List<FinanceTransaction> transactions;
-  final ValueChanged<FinanceTransaction> onAdd;
+class FinancePage
+    extends StatefulWidget {
+  final FinanceController controller;
+  final List<Project> projects;
 
   const FinancePage({
     super.key,
-    required this.transactions,
-    required this.onAdd,
+    required this.controller,
+    required this.projects,
   });
 
   @override
@@ -1769,91 +2016,174 @@ class FinancePage extends StatefulWidget {
 class _FinancePageState
     extends State<FinancePage> {
   void addTransaction() {
-    final title = TextEditingController();
-    final amount = TextEditingController();
+    final title =
+        TextEditingController();
+
+    final amount =
+        TextEditingController();
 
     bool income = true;
     bool project = true;
 
+    String? projectId;
+
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (context, setLocalState) {
+        builder:
+            (context, setLocalState) {
           return AlertDialog(
-            title: const Text('تراکنش جدید'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: title,
-                  decoration:
-                      const InputDecoration(
-                    labelText: 'عنوان',
+            title:
+                const Text(
+              'تراکنش جدید',
+            ),
+            content:
+                SingleChildScrollView(
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: title,
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'عنوان',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: amount,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(
-                    decimal: true,
+                  const SizedBox(
+                    height: 10,
                   ),
-                  decoration:
-                      const InputDecoration(
-                    labelText: 'مبلغ',
+                  TextField(
+                    controller:
+                        amount,
+                    keyboardType:
+                        const TextInputType
+                            .numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'مبلغ',
+                    ),
                   ),
-                ),
-                SwitchListTile(
-                  title: const Text('درآمد'),
-                  value: income,
-                  onChanged: (v) {
-                    setLocalState(() {
-                      income = v;
-                    });
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('پروژه‌ای'),
-                  value: project,
-                  onChanged: (v) {
-                    setLocalState(() {
-                      project = v;
-                    });
-                  },
-                ),
-              ],
+                  SwitchListTile(
+                    title:
+                        const Text(
+                      'درآمد',
+                    ),
+                    value: income,
+                    onChanged: (v) {
+                      setLocalState(
+                        () {
+                          income = v;
+                        },
+                      );
+                    },
+                  ),
+                  SwitchListTile(
+                    title:
+                        const Text(
+                      'پروژه‌ای',
+                    ),
+                    value: project,
+                    onChanged: (v) {
+                      setLocalState(
+                        () {
+                          project = v;
+
+                          if (!project) {
+                            projectId =
+                                null;
+                          }
+                        },
+                      );
+                    },
+                  ),
+                  if (project &&
+                      widget.projects
+                          .isNotEmpty)
+                    DropdownButtonFormField<
+                        String>(
+                      value: projectId,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'پروژه',
+                      ),
+                      items: widget
+                          .projects
+                          .map(
+                        (p) =>
+                            DropdownMenuItem(
+                          value: p.id,
+                          child:
+                              Text(
+                            p.name,
+                          ),
+                        ),
+                      ).toList(),
+                      onChanged: (v) {
+                        setLocalState(
+                          () {
+                            projectId =
+                                v;
+                          },
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () =>
-                    Navigator.pop(context),
-                child: const Text('انصراف'),
+                    Navigator.pop(
+                  context,
+                ),
+                child:
+                    const Text(
+                  'انصراف',
+                ),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   final value =
                       double.tryParse(
                     amount.text,
                   );
 
                   if (value == null ||
-                      title.text.trim().isEmpty) {
+                      title.text
+                          .trim()
+                          .isEmpty) {
                     return;
                   }
 
-                  widget.onAdd(
-                    FinanceTransaction(
-                      title: title.text.trim(),
-                      amount: value,
-                      income: income,
-                      projectRelated: project,
-                    ),
+                  await widget.controller
+                      .add(
+                    title:
+                        title.text
+                            .trim(),
+                    amount: value,
+                    income: income,
+                    projectRelated:
+                        project,
+                    projectId:
+                        project
+                            ? projectId
+                            : null,
                   );
 
-                  Navigator.pop(context);
-                  setState(() {});
+                  if (context.mounted) {
+                    Navigator.pop(
+                      context,
+                    );
+                  }
                 },
-                child: const Text('ثبت'),
+                child:
+                    const Text('ثبت'),
               ),
             ],
           );
@@ -1862,107 +2192,154 @@ class _FinancePageState
     );
   }
 
-  double total({
-    required bool project,
-    required bool income,
-  }) {
-    return widget.transactions
-        .where(
-          (t) =>
-              t.projectRelated == project &&
-              t.income == income,
-        )
-        .fold(
-          0,
-          (sum, item) => sum + item.amount,
-        );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final projectIncome =
-        total(project: true, income: true);
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, _) {
+        final projectIncome =
+            widget.controller
+                .projectIncome;
 
-    final projectExpense =
-        total(project: true, income: false);
+        final projectExpense =
+            widget.controller
+                .projectExpense;
 
-    final personalIncome =
-        total(project: false, income: true);
+        final personalIncome =
+            widget.controller
+                .personalIncome;
 
-    final personalExpense =
-        total(project: false, income: false);
+        final personalExpense =
+            widget.controller
+                .personalExpense;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('مالی'),
-      ),
-      floatingActionButton:
-          FloatingActionButton.extended(
-        onPressed: addTransaction,
-        icon: const Icon(Icons.add),
-        label: const Text('تراکنش'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Finance',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
+        final transactions =
+            widget.controller
+                .transactions;
+
+        return Scaffold(
+          appBar: AppBar(
+            title:
+                const Text('مالی'),
+          ),
+          floatingActionButton:
+              FloatingActionButton
+                  .extended(
+            onPressed:
+                addTransaction,
+            icon: const Icon(
+              Icons.add,
+            ),
+            label:
+                const Text(
+              'تراکنش',
             ),
           ),
-          const SizedBox(height: 5),
-          const Text(
-            'مالی پروژه و شخصی از هم جدا هستند.',
-            style: TextStyle(
-              color: Colors.white54,
+          body: ListView(
+            padding:
+                const EdgeInsets.all(
+              16,
             ),
-          ),
-          const SizedBox(height: 20),
-          _FinanceSummary(
-            title: 'مالی پروژه',
-            income: projectIncome,
-            expense: projectExpense,
-          ),
-          const SizedBox(height: 12),
-          _FinanceSummary(
-            title: 'مالی شخصی',
-            income: personalIncome,
-            expense: personalExpense,
-          ),
-          const SizedBox(height: 20),
-          if (widget.transactions.isNotEmpty)
-            ...widget.transactions.reversed.map(
-              (transaction) => Card(
-                margin:
-                    const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Icon(
-                    transaction.income
-                        ? Icons.arrow_downward
-                        : Icons.arrow_upward,
-                  ),
-                  title: Text(transaction.title),
-                  subtitle: Text(
-                    transaction.projectRelated
-                        ? 'پروژه‌ای'
-                        : 'شخصی',
-                  ),
-                  trailing: Text(
-                    transaction.amount
-                        .toStringAsFixed(0),
-                  ),
+            children: [
+              const Text(
+                'Finance',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
               ),
-            ),
-        ],
-      ),
+              const SizedBox(
+                height: 5,
+              ),
+              const Text(
+                'مالی پروژه و شخصی کاملاً جدا هستند.',
+                style:
+                    TextStyle(
+                  color:
+                      Colors.white54,
+                ),
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+              _FinanceSummary(
+                title:
+                    'مالی پروژه',
+                income:
+                    projectIncome,
+                expense:
+                    projectExpense,
+              ),
+              const SizedBox(
+                height: 12,
+              ),
+              _FinanceSummary(
+                title:
+                    'مالی شخصی',
+                income:
+                    personalIncome,
+                expense:
+                    personalExpense,
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+              if (transactions
+                  .isNotEmpty)
+                ...transactions
+                    .reversed
+                    .map(
+                  (transaction) =>
+                      Card(
+                    margin:
+                        const EdgeInsets
+                            .only(
+                      bottom: 8,
+                    ),
+                    child:
+                        ListTile(
+                      leading:
+                          Icon(
+                        transaction
+                                .income
+                            ? Icons
+                                .arrow_downward
+                            : Icons
+                                .arrow_upward,
+                      ),
+                      title: Text(
+                        transaction
+                            .title,
+                      ),
+                      subtitle:
+                          Text(
+                        transaction
+                                .projectRelated
+                            ? 'پروژه‌ای'
+                            : 'شخصی',
+                      ),
+                      trailing:
+                          Text(
+                        transaction
+                            .amount
+                            .toStringAsFixed(
+                          0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-class _FinanceSummary extends StatelessWidget {
+class _FinanceSummary
+    extends StatelessWidget {
   final String title;
   final double income;
   final double expense;
@@ -1975,31 +2352,42 @@ class _FinanceSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final balance = income - expense;
+    final balance =
+        income - expense;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding:
+            const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 15),
+            const SizedBox(
+              height: 15,
+            ),
             Text(
               'مانده: ${balance.toStringAsFixed(0)}',
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
             Row(
               children: [
                 Expanded(
@@ -2025,23 +2413,29 @@ class _FinanceSummary extends StatelessWidget {
    INTELLIGENCE
    ============================================================ */
 
-class IntelligencePage extends StatelessWidget {
-  const IntelligencePage({super.key});
+class IntelligencePage
+    extends StatelessWidget {
+  const IntelligencePage({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('هوش معماری'),
+        title:
+            const Text('هوش معماری'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: const [
           Text(
             'ARCX Intelligence',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           SizedBox(height: 8),
@@ -2053,29 +2447,43 @@ class IntelligencePage extends StatelessWidget {
           ),
           SizedBox(height: 22),
           _CalculatorTile(
-            icon: Icons.auto_awesome,
+            icon:
+                Icons.auto_awesome,
             title: 'AI Assistant',
-            subtitle: 'دستیار معماری و مهندسی',
+            subtitle:
+                'دستیار معماری و مهندسی',
           ),
           _CalculatorTile(
-            icon: Icons.analytics_outlined,
-            title: 'Project Analysis',
-            subtitle: 'تحلیل پروژه',
+            icon:
+                Icons.analytics_outlined,
+            title:
+                'Project Analysis',
+            subtitle:
+                'تحلیل پروژه',
           ),
           _CalculatorTile(
-            icon: Icons.lightbulb_outline,
-            title: 'Design Suggestions',
-            subtitle: 'پیشنهادهای طراحی',
+            icon:
+                Icons.lightbulb_outline,
+            title:
+                'Design Suggestions',
+            subtitle:
+                'پیشنهادهای طراحی',
           ),
           _CalculatorTile(
-            icon: Icons.warning_amber_outlined,
-            title: 'Risk Detection',
-            subtitle: 'تشخیص ریسک',
+            icon:
+                Icons.warning_amber_outlined,
+            title:
+                'Risk Detection',
+            subtitle:
+                'تشخیص ریسک',
           ),
           _CalculatorTile(
-            icon: Icons.auto_graph,
-            title: 'Optimization',
-            subtitle: 'بهینه‌سازی',
+            icon:
+                Icons.auto_graph,
+            title:
+                'Optimization',
+            subtitle:
+                'بهینه‌سازی',
           ),
         ],
       ),
@@ -2087,54 +2495,78 @@ class IntelligencePage extends StatelessWidget {
    SETTINGS
    ============================================================ */
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+class SettingsPage
+    extends StatelessWidget {
+  const SettingsPage({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تنظیمات'),
+        title:
+            const Text('تنظیمات'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         children: const [
           Text(
             'Settings',
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           SizedBox(height: 20),
           ListTile(
-            leading: Icon(Icons.language),
-            title: Text('زبان'),
-            subtitle: Text('فارسی / English'),
+            leading:
+                Icon(Icons.language),
+            title:
+                Text('زبان'),
+            subtitle:
+                Text('فارسی / English'),
           ),
           ListTile(
-            leading: Icon(Icons.dark_mode_outlined),
-            title: Text('ظاهر'),
-            subtitle: Text('Dark Mode'),
+            leading: Icon(
+              Icons.dark_mode_outlined,
+            ),
+            title:
+                Text('ظاهر'),
+            subtitle:
+                Text('Dark Mode'),
           ),
           ListTile(
-            leading: Icon(Icons.storage_outlined),
-            title: Text('Storage'),
-            subtitle: Text(
-              'هسته ذخیره‌سازی محلی — مرحله بعد',
+            leading: Icon(
+              Icons.storage_outlined,
+            ),
+            title:
+                Text('Storage'),
+            subtitle:
+                Text(
+              'ذخیره‌سازی محلی فعال است.',
             ),
           ),
           ListTile(
-            leading: Icon(Icons.cloud_outlined),
-            title: Text('Cloud Sync'),
-            subtitle: Text(
+            leading: Icon(
+              Icons.cloud_outlined,
+            ),
+            title:
+                Text('Cloud Sync'),
+            subtitle:
+                Text(
               'همگام‌سازی ابری — مرحله بعد',
             ),
           ),
           ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('ARCX'),
-            subtitle: Text(
+            leading:
+                Icon(Icons.info_outline),
+            title:
+                Text('ARCX'),
+            subtitle:
+                Text(
               'Architecture & Engineering Intelligence',
             ),
           ),
@@ -2165,8 +2597,11 @@ class ModuleSearchDelegate
     return [
       if (query.isNotEmpty)
         IconButton(
-          onPressed: () => query = '',
-          icon: const Icon(Icons.clear),
+          onPressed: () =>
+              query = '',
+          icon: const Icon(
+            Icons.clear,
+          ),
         ),
     ];
   }
@@ -2176,8 +2611,11 @@ class ModuleSearchDelegate
     BuildContext context,
   ) {
     return IconButton(
-      onPressed: () => close(context, ''),
-      icon: const Icon(Icons.arrow_back),
+      onPressed: () =>
+          close(context, ''),
+      icon: const Icon(
+        Icons.arrow_back,
+      ),
     );
   }
 
@@ -2185,38 +2623,57 @@ class ModuleSearchDelegate
   Widget buildResults(
     BuildContext context,
   ) {
-    return _buildResults(context);
+    return _buildResults(
+      context,
+    );
   }
 
   @override
   Widget buildSuggestions(
     BuildContext context,
   ) {
-    return _buildResults(context);
+    return _buildResults(
+      context,
+    );
   }
 
-  Widget _buildResults(BuildContext context) {
-    final q = query.toLowerCase();
+  Widget _buildResults(
+    BuildContext context,
+  ) {
+    final q =
+        query.toLowerCase();
 
-    final results = modules.where((module) {
+    final results =
+        modules.where((module) {
       return module.title
               .toLowerCase()
               .contains(q) ||
-          module.subtitle.contains(query);
+          module.subtitle
+              .contains(query);
     }).toList();
 
     return ListView.builder(
-      itemCount: results.length,
+      itemCount:
+          results.length,
       itemBuilder: (_, index) {
-        final module = results[index];
+        final module =
+            results[index];
 
         return ListTile(
-          leading: Icon(module.icon),
-          title: Text(module.title),
-          subtitle: Text(module.subtitle),
+          leading:
+              Icon(module.icon),
+          title:
+              Text(module.title),
+          subtitle:
+              Text(module.subtitle),
           onTap: () {
-            close(context, module.title);
-            onSelected(module.title);
+            close(
+              context,
+              module.title,
+            );
+            onSelected(
+              module.title,
+            );
           },
         );
       },
@@ -2228,7 +2685,8 @@ class ModuleSearchDelegate
    INFO COMPONENTS
    ============================================================ */
 
-class _InfoCard extends StatelessWidget {
+class _InfoCard
+    extends StatelessWidget {
   final String title;
   final List<Widget> children;
 
@@ -2241,19 +2699,25 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 17,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
             ...children,
           ],
         ),
@@ -2262,7 +2726,8 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _InfoRow
+    extends StatelessWidget {
   final String label;
   final String value;
 
@@ -2275,12 +2740,15 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding:
-          const EdgeInsets.symmetric(vertical: 6),
+          const EdgeInsets.symmetric(
+        vertical: 6,
+      ),
       child: Row(
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style:
+                const TextStyle(
               color: Colors.white54,
             ),
           ),
@@ -2288,7 +2756,8 @@ class _InfoRow extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              textAlign: TextAlign.left,
+              textAlign:
+                  TextAlign.left,
             ),
           ),
         ],
