@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'finance_controller.dart';
 import 'material_controller.dart';
-import 'models/finance_transaction.dart';
 import 'models/material.dart';
 import 'models/project.dart';
 import 'services/project_context_controller.dart';
