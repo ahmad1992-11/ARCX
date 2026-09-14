@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/project.dart';
 import '../models/finance_transaction.dart';
 import '../models/material.dart';
@@ -10,12 +14,20 @@ class StorageService {
 
   StorageService._internal();
 
+  static const String _projectsKey = 'arcx.projects';
+  static const String _transactionsKey = 'arcx.transactions';
+  static const String _materialsKey = 'arcx.materials';
+  static const String _elementsKey = 'arcx.elements';
+  static const String _userProfileKey = 'arcx.user_profile';
+
   final List<Project> _projects = [];
   final List<FinanceTransaction> _transactions = [];
   final List<MaterialItem> _materials = [];
   final List<ProjectElement> _elements = [];
 
   UserProfile? _userProfile;
+
+  SharedPreferences? _preferences;
 
   bool _initialized = false;
 
@@ -24,7 +36,27 @@ class StorageService {
   Future<void> initialize() async {
     if (_initialized) return;
 
+    _preferences = await SharedPreferences.getInstance();
+
+    await _loadProjects();
+    await _loadTransactions();
+    await _loadMaterials();
+    await _loadElements();
+    await _loadUserProfile();
+
     _initialized = true;
+  }
+
+  SharedPreferences get _prefs {
+    final preferences = _preferences;
+
+    if (preferences == null) {
+      throw StateError(
+        'StorageService has not been initialized.',
+      );
+    }
+
+    return preferences;
   }
 
   /* ==========================================================
@@ -55,6 +87,8 @@ class StorageService {
     } else {
       _projects[index] = project;
     }
+
+    await _saveProjects();
   }
 
   Future<void> deleteProject(String id) async {
@@ -64,6 +98,48 @@ class StorageService {
 
     _elements.removeWhere(
       (element) => element.projectId == id,
+    );
+
+    await _saveProjects();
+    await _saveElements();
+  }
+
+  Future<void> _loadProjects() async {
+    final raw = _prefs.getString(_projectsKey);
+
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is! List) {
+        return;
+      }
+
+      _projects
+        ..clear()
+        ..addAll(
+          decoded.map(
+            (item) => Project.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          ),
+        );
+    } catch (_) {
+      _projects.clear();
+    }
+  }
+
+  Future<void> _saveProjects() async {
+    final encoded = jsonEncode(
+      _projects.map((item) => item.toJson()).toList(),
+    );
+
+    await _prefs.setString(
+      _projectsKey,
+      encoded,
     );
   }
 
@@ -87,11 +163,56 @@ class StorageService {
     } else {
       _transactions[index] = transaction;
     }
+
+    await _saveTransactions();
   }
 
   Future<void> deleteTransaction(String id) async {
     _transactions.removeWhere(
       (transaction) => transaction.id == id,
+    );
+
+    await _saveTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    final raw = _prefs.getString(_transactionsKey);
+
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is! List) {
+        return;
+      }
+
+      _transactions
+        ..clear()
+        ..addAll(
+          decoded.map(
+            (item) => FinanceTransaction.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          ),
+        );
+    } catch (_) {
+      _transactions.clear();
+    }
+  }
+
+  Future<void> _saveTransactions() async {
+    final encoded = jsonEncode(
+      _transactions
+          .map((item) => item.toJson())
+          .toList(),
+    );
+
+    await _prefs.setString(
+      _transactionsKey,
+      encoded,
     );
   }
 
@@ -115,11 +236,56 @@ class StorageService {
     } else {
       _materials[index] = material;
     }
+
+    await _saveMaterials();
   }
 
   Future<void> deleteMaterial(String id) async {
     _materials.removeWhere(
       (material) => material.id == id,
+    );
+
+    await _saveMaterials();
+  }
+
+  Future<void> _loadMaterials() async {
+    final raw = _prefs.getString(_materialsKey);
+
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is! List) {
+        return;
+      }
+
+      _materials
+        ..clear()
+        ..addAll(
+          decoded.map(
+            (item) => MaterialItem.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          ),
+        );
+    } catch (_) {
+      _materials.clear();
+    }
+  }
+
+  Future<void> _saveMaterials() async {
+    final encoded = jsonEncode(
+      _materials
+          .map((item) => item.toJson())
+          .toList(),
+    );
+
+    await _prefs.setString(
+      _materialsKey,
+      encoded,
     );
   }
 
@@ -149,6 +315,8 @@ class StorageService {
     } else {
       _elements[index] = element;
     }
+
+    await _saveElements();
   }
 
   Future<void> deleteProjectElement(
@@ -156,6 +324,49 @@ class StorageService {
   ) async {
     _elements.removeWhere(
       (element) => element.id == id,
+    );
+
+    await _saveElements();
+  }
+
+  Future<void> _loadElements() async {
+    final raw = _prefs.getString(_elementsKey);
+
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is! List) {
+        return;
+      }
+
+      _elements
+        ..clear()
+        ..addAll(
+          decoded.map(
+            (item) => ProjectElement.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          ),
+        );
+    } catch (_) {
+      _elements.clear();
+    }
+  }
+
+  Future<void> _saveElements() async {
+    final encoded = jsonEncode(
+      _elements
+          .map((item) => item.toJson())
+          .toList(),
+    );
+
+    await _prefs.setString(
+      _elementsKey,
+      encoded,
     );
   }
 
@@ -171,6 +382,35 @@ class StorageService {
     UserProfile profile,
   ) async {
     _userProfile = profile;
+
+    final encoded = jsonEncode(
+      profile.toJson(),
+    );
+
+    await _prefs.setString(
+      _userProfileKey,
+      encoded,
+    );
+  }
+
+  Future<void> _loadUserProfile() async {
+    final raw = _prefs.getString(_userProfileKey);
+
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+
+      if (decoded is Map) {
+        _userProfile = UserProfile.fromJson(
+          Map<String, dynamic>.from(decoded),
+        );
+      }
+    } catch (_) {
+      _userProfile = null;
+    }
   }
 
   /* ==========================================================
@@ -183,5 +423,11 @@ class StorageService {
     _materials.clear();
     _elements.clear();
     _userProfile = null;
+
+    await _prefs.remove(_projectsKey);
+    await _prefs.remove(_transactionsKey);
+    await _prefs.remove(_materialsKey);
+    await _prefs.remove(_elementsKey);
+    await _prefs.remove(_userProfileKey);
   }
 }
