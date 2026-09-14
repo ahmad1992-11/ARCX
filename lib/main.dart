@@ -9,6 +9,7 @@ Future<void> main() async {
 
   runApp(const ARCXApp());
 }
+
 /* ============================================================
    ARCX
    Architecture & Engineering Intelligence
@@ -353,7 +354,7 @@ class DashboardPage extends StatelessWidget {
     required this.onModuleTap,
   });
 
-  final List<_DashboardModule> modules = const [
+  static const List<_DashboardModule> modules = [
     _DashboardModule(
       title: 'Field Tools',
       subtitle: 'ابزارهای میدانی',
@@ -450,7 +451,6 @@ class DashboardPage extends StatelessWidget {
             ),
           ),
         ),
-
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -460,7 +460,6 @@ class DashboardPage extends StatelessWidget {
             ),
           ),
         ),
-
         SliverPadding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -489,7 +488,6 @@ class DashboardPage extends StatelessWidget {
             ),
           ),
         ),
-
         const SliverToBoxAdapter(
           child: SizedBox(height: 30),
         ),
@@ -624,7 +622,7 @@ class _VersionBadge extends StatelessWidget {
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(.14),
+        color: Colors.green.withValues(alpha: .14),
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Text(
@@ -972,9 +970,7 @@ class _ProjectDetailPageState
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           _InfoCard(
             title: 'اندازه‌گیری‌ها',
             children: [
@@ -1000,9 +996,7 @@ class _ProjectDetailPageState
                 ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           _InfoCard(
             title: 'یادداشت‌ها',
             children: [
@@ -1199,9 +1193,7 @@ class _FieldToolsPageState
               color: Colors.white54,
             ),
           ),
-
           const SizedBox(height: 20),
-
           _ToolCard(
             icon: Icons.straighten,
             title: 'Distance',
@@ -1253,9 +1245,7 @@ class _FieldToolsPageState
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           _ToolCard(
             icon: Icons.change_history,
             title: 'Angle',
@@ -1283,9 +1273,7 @@ class _FieldToolsPageState
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           _ToolCard(
             icon: Icons.crop_square,
             title: 'Area',
@@ -1336,39 +1324,30 @@ class _FieldToolsPageState
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           const _ToolCard(
             icon: Icons.water_drop_outlined,
             title: 'Bubble Level',
             subtitle: 'تراز حباب با سنسور دستگاه',
           ),
-
           const SizedBox(height: 12),
-
           const _ToolCard(
             icon: Icons.screen_rotation_outlined,
             title: 'Inclinometer',
             subtitle: 'شیب‌سنج',
           ),
-
           const SizedBox(height: 12),
-
           const _ToolCard(
             icon: Icons.camera_alt_outlined,
             title: 'Camera Measure',
             subtitle: 'اندازه‌گیری با دوربین',
           ),
-
           const SizedBox(height: 12),
-
           const _ToolCard(
             icon: Icons.architecture_outlined,
             title: 'Plan Sketch',
             subtitle: 'ترسیم سریع پلان',
           ),
-
           if (widget.measurements.isNotEmpty) ...[
             const SizedBox(height: 25),
             const Text(
@@ -1936,23 +1915,18 @@ class _FinancePageState
             ),
           ),
           const SizedBox(height: 20),
-
           _FinanceSummary(
             title: 'مالی پروژه',
             income: projectIncome,
             expense: projectExpense,
           ),
-
           const SizedBox(height: 12),
-
           _FinanceSummary(
             title: 'مالی شخصی',
             income: personalIncome,
             expense: personalExpense,
           ),
-
           const SizedBox(height: 20),
-
           if (widget.transactions.isNotEmpty)
             ...widget.transactions.reversed.map(
               (transaction) => Card(
@@ -2206,17 +2180,17 @@ class ModuleSearchDelegate
   Widget buildResults(
     BuildContext context,
   ) {
-    return _buildResults();
+    return _buildResults(context);
   }
 
   @override
   Widget buildSuggestions(
     BuildContext context,
   ) {
-    return _buildResults();
+    return _buildResults(context);
   }
 
-  Widget _buildResults() {
+  Widget _buildResults(BuildContext context) {
     final q = query.toLowerCase();
 
     final results = modules.where((module) {
