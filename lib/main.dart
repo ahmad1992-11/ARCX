@@ -7,7 +7,7 @@ void main() {
 /* ============================================================
    ARCX
    Architecture & Engineering Intelligence
-   Single-file foundation
+   Foundation v0.2
    ============================================================ */
 
 class ARCXApp extends StatelessWidget {
@@ -22,331 +22,408 @@ class ARCXApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorSchemeSeed: const Color(0xFF4F8CFF),
-        scaffoldBackgroundColor: const Color(0xFF0D0F13),
+        scaffoldBackgroundColor: const Color(0xFF0B0D11),
         cardTheme: CardThemeData(
-          color: const Color(0xFF171A20),
+          color: const Color(0xFF15181E),
           elevation: 0,
+          margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF171A20),
+          fillColor: const Color(0xFF15181E),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+              color: Color(0xFF4F8CFF),
+            ),
+          ),
         ),
       ),
-      home: const ARCXShell(),
+      home: const ARCXRoot(),
     );
   }
 }
 
 /* ============================================================
-   MODELS
+   DATA MODELS
    ============================================================ */
 
-class ARCXProject {
-  String id;
+class Project {
+  final String id;
   String name;
   String location;
-  String type;
-  DateTime createdAt;
-  List<Measurement> measurements;
+  String category;
+  String status;
+  final DateTime createdAt;
+  final List<Measurement> measurements;
+  final List<NoteItem> notes;
 
-  ARCXProject({
+  Project({
     required this.id,
     required this.name,
     required this.location,
-    required this.type,
-    required this.createdAt,
+    required this.category,
+    this.status = 'Active',
+    DateTime? createdAt,
     List<Measurement>? measurements,
-  }) : measurements = measurements ?? [];
+    List<NoteItem>? notes,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        measurements = measurements ?? [],
+        notes = notes ?? [];
 }
 
 class Measurement {
   final String type;
   final double value;
   final String unit;
-  final DateTime createdAt;
+  final DateTime date;
 
   Measurement({
     required this.type,
     required this.value,
     required this.unit,
-    required this.createdAt,
-  });
+    DateTime? date,
+  }) : date = date ?? DateTime.now();
 }
 
-class ModuleItem {
+class NoteItem {
   final String title;
-  final String subtitle;
-  final IconData icon;
+  final String text;
+  final DateTime date;
 
-  const ModuleItem({
+  NoteItem({
     required this.title,
-    required this.subtitle,
-    required this.icon,
+    required this.text,
+    DateTime? date,
+  }) : date = date ?? DateTime.now();
+}
+
+class FinanceTransaction {
+  final String title;
+  final double amount;
+  final bool income;
+  final bool projectRelated;
+  final DateTime date;
+
+  FinanceTransaction({
+    required this.title,
+    required this.amount,
+    required this.income,
+    required this.projectRelated,
+    DateTime? date,
+  }) : date = date ?? DateTime.now();
+}
+
+class MaterialItem {
+  final String name;
+  final String category;
+  final String unit;
+  double price;
+
+  MaterialItem({
+    required this.name,
+    required this.category,
+    required this.unit,
+    required this.price,
   });
 }
 
 /* ============================================================
-   MAIN SHELL
+   ROOT
    ============================================================ */
 
-class ARCXShell extends StatefulWidget {
-  const ARCXShell({super.key});
+class ARCXRoot extends StatefulWidget {
+  const ARCXRoot({super.key});
 
   @override
-  State<ARCXShell> createState() => _ARCXShellState();
+  State<ARCXRoot> createState() => _ARCXRootState();
 }
 
-class _ARCXShellState extends State<ARCXShell> {
-  int selectedIndex = 0;
+class _ARCXRootState extends State<ARCXRoot> {
+  int tab = 0;
 
-  final List<ARCXProject> projects = [
-    ARCXProject(
-      id: 'P001',
-      name: 'ARCX Demo Project',
+  final List<Project> projects = [
+    Project(
+      id: 'ARCX-001',
+      name: 'Demo Architecture Project',
       location: 'Tehran',
-      type: 'Architecture',
-      createdAt: DateTime.now(),
+      category: 'Architecture',
     ),
   ];
 
-  final List<Measurement> measurements = [];
+  final List<Measurement> globalMeasurements = [];
 
-  final List<ModuleItem> modules = const [
-    ModuleItem(
+  final List<FinanceTransaction> transactions = [];
+
+  final List<MaterialItem> materials = [
+    MaterialItem(
+      name: 'Concrete',
+      category: 'Structure',
+      unit: 'm³',
+      price: 0,
+    ),
+    MaterialItem(
+      name: 'Steel',
+      category: 'Structure',
+      unit: 'kg',
+      price: 0,
+    ),
+    MaterialItem(
+      name: 'MDF',
+      category: 'Interior',
+      unit: 'sheet',
+      price: 0,
+    ),
+  ];
+
+  void addProject(Project project) {
+    setState(() {
+      projects.add(project);
+    });
+  }
+
+  void deleteProject(Project project) {
+    setState(() {
+      projects.remove(project);
+    });
+  }
+
+  void addMeasurement(Measurement measurement) {
+    setState(() {
+      globalMeasurements.add(measurement);
+    });
+  }
+
+  void addTransaction(FinanceTransaction transaction) {
+    setState(() {
+      transactions.add(transaction);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      DashboardPage(
+        projects: projects,
+        measurements: globalMeasurements,
+        onModuleTap: openModule,
+      ),
+      ProjectsPage(
+        projects: projects,
+        onCreate: addProject,
+        onDelete: deleteProject,
+      ),
+      FieldToolsPage(
+        measurements: globalMeasurements,
+        onSave: addMeasurement,
+      ),
+      const SettingsPage(),
+    ];
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: SafeArea(
+          child: pages[tab],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: tab,
+          onDestinationSelected: (value) {
+            setState(() {
+              tab = value;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'خانه',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.folder_outlined),
+              selectedIcon: Icon(Icons.folder),
+              label: 'پروژه‌ها',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.straighten_outlined),
+              selectedIcon: Icon(Icons.straighten),
+              label: 'ابزار',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: 'تنظیمات',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void openModule(String module) {
+    Widget? page;
+
+    switch (module) {
+      case 'Field Tools':
+        page = FieldToolsPage(
+          measurements: globalMeasurements,
+          onSave: addMeasurement,
+        );
+        break;
+
+      case 'Projects':
+        page = ProjectsPage(
+          projects: projects,
+          onCreate: addProject,
+          onDelete: deleteProject,
+        );
+        break;
+
+      case 'Calculators':
+        page = const CalculatorsPage();
+        break;
+
+      case 'Plans':
+        page = const PlansPage();
+        break;
+
+      case 'Materials':
+        page = MaterialsPage(materials: materials);
+        break;
+
+      case 'Documentation':
+        page = DocumentationPage(projects: projects);
+        break;
+
+      case 'Finance':
+        page = FinancePage(
+          transactions: transactions,
+          onAdd: addTransaction,
+        );
+        break;
+
+      case 'Intelligence':
+        page = const IntelligencePage();
+        break;
+    }
+
+    if (page != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: page!,
+          ),
+        ),
+      );
+    }
+  }
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+class DashboardPage extends StatelessWidget {
+  final List<Project> projects;
+  final List<Measurement> measurements;
+  final ValueChanged<String> onModuleTap;
+
+  const DashboardPage({
+    super.key,
+    required this.projects,
+    required this.measurements,
+    required this.onModuleTap,
+  });
+
+  final List<_DashboardModule> modules = const [
+    _DashboardModule(
       title: 'Field Tools',
       subtitle: 'ابزارهای میدانی',
       icon: Icons.straighten,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Projects',
       subtitle: 'مدیریت پروژه',
       icon: Icons.account_tree_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Calculators',
-      subtitle: 'محاسبات مهندسی',
+      subtitle: 'محاسبات',
       icon: Icons.calculate_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Plans',
       subtitle: 'طراحی پلان',
       icon: Icons.architecture_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Materials',
-      subtitle: 'مصالح و متریال',
-      icon: Icons.inventory_2_outlined,
+      subtitle: 'مصالح',
+      icon: Icons.layers_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Documentation',
-      subtitle: 'مستندسازی',
+      subtitle: 'مستندات',
       icon: Icons.description_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Finance',
-      subtitle: 'مالی پروژه و شخصی',
+      subtitle: 'مالی',
       icon: Icons.account_balance_wallet_outlined,
     ),
-    ModuleItem(
+    _DashboardModule(
       title: 'Intelligence',
       subtitle: 'هوش معماری',
       icon: Icons.psychology_outlined,
     ),
   ];
 
-  void openModule(String title) {
-    switch (title) {
-      case 'Field Tools':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FieldToolsPage(
-              measurements: measurements,
-              onMeasurementAdded: (measurement) {
-                setState(() {
-                  measurements.add(measurement);
-                });
-              },
-            ),
-          ),
-        );
-        break;
-
-      case 'Projects':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProjectsPage(
-              projects: projects,
-              onProjectCreated: (project) {
-                setState(() {
-                  projects.add(project);
-                });
-              },
-              onProjectDeleted: (project) {
-                setState(() {
-                  projects.remove(project);
-                });
-              },
-            ),
-          ),
-        );
-        break;
-
-      case 'Calculators':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const CalculatorsPage(),
-          ),
-        );
-        break;
-
-      case 'Plans':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PlansPage(),
-          ),
-        );
-        break;
-
-      case 'Materials':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MaterialsPage(),
-          ),
-        );
-        break;
-
-      case 'Documentation':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const DocumentationPage(),
-          ),
-        );
-        break;
-
-      case 'Finance':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const FinancePage(),
-          ),
-        );
-        break;
-
-      case 'Intelligence':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const IntelligencePage(),
-          ),
-        );
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      _buildDashboard(),
-      ProjectsPage(
-        projects: projects,
-        onProjectCreated: (project) {
-          setState(() {
-            projects.add(project);
-          });
-        },
-        onProjectDeleted: (project) {
-          setState(() {
-            projects.remove(project);
-          });
-        },
-      ),
-      FieldToolsPage(
-        measurements: measurements,
-        onMeasurementAdded: (measurement) {
-          setState(() {
-            measurements.add(measurement);
-          });
-        },
-      ),
-      const SettingsPage(),
-    ];
-
-    return Scaffold(
-      body: SafeArea(
-        child: pages[selectedIndex],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'خانه',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: 'پروژه‌ها',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.straighten_outlined),
-            selectedIcon: Icon(Icons.straighten),
-            label: 'ابزار',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'تنظیمات',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDashboard() {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              12,
+            ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: const [
                       Text(
                         'ARCX',
                         style: TextStyle(
-                          fontSize: 30,
+                          fontSize: 32,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
+                          letterSpacing: 2,
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         'Architecture & Engineering Intelligence',
                         style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white60,
+                          fontSize: 10,
+                          color: Colors.white54,
                         ),
                       ),
                     ],
@@ -356,9 +433,9 @@ class _ARCXShellState extends State<ARCXShell> {
                   onPressed: () {
                     showSearch(
                       context: context,
-                      delegate: ARCXSearchDelegate(
+                      delegate: ModuleSearchDelegate(
                         modules: modules,
-                        onSelected: openModule,
+                        onSelected: onModuleTap,
                       ),
                     );
                   },
@@ -372,20 +449,28 @@ class _ARCXShellState extends State<ARCXShell> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: _buildOverviewCard(),
+            child: _ProjectOverview(
+              projects: projects,
+              measurements: measurements,
+            ),
           ),
         ),
 
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+          ),
           sliver: SliverGrid(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final module = modules[index];
 
-                return ModuleCard(
-                  module: module,
-                  onTap: () => openModule(module.title),
+                return _ModuleCard(
+                  title: module.title,
+                  subtitle: module.subtitle,
+                  icon: module.icon,
+                  onTap: () =>
+                      onModuleTap(module.title),
                 );
               },
               childCount: modules.length,
@@ -401,18 +486,40 @@ class _ARCXShellState extends State<ARCXShell> {
         ),
 
         const SliverToBoxAdapter(
-          child: SizedBox(height: 25),
+          child: SizedBox(height: 30),
         ),
       ],
     );
   }
+}
 
-  Widget _buildOverviewCard() {
+class _DashboardModule {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const _DashboardModule({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+}
+
+class _ProjectOverview extends StatelessWidget {
+  final List<Project> projects;
+  final List<Measurement> measurements;
+
+  const _ProjectOverview({
+    required this.projects,
+    required this.measurements,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -423,7 +530,8 @@ class _ARCXShellState extends State<ARCXShell> {
                     color: Theme.of(context)
                         .colorScheme
                         .primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius:
+                        BorderRadius.circular(16),
                   ),
                   child: Icon(
                     Icons.architecture,
@@ -442,86 +550,55 @@ class _ARCXShellState extends State<ARCXShell> {
                         'Project Core',
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(height: 3),
+                      SizedBox(height: 4),
                       Text(
                         'هسته مرکزی ARCX',
                         style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
+                          color: Colors.white54,
+                          fontSize: 11,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'v0.1',
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
+                const _VersionBadge(),
               ],
             ),
-
             const SizedBox(height: 22),
-
             Row(
               children: [
-                _StatItem(
-                  label: 'Projects',
+                _Stat(
+                  title: 'پروژه',
                   value: projects.length.toString(),
                 ),
-                _StatItem(
-                  label: 'Measurements',
-                  value: measurements.length.toString(),
+                _Stat(
+                  title: 'اندازه‌گیری',
+                  value:
+                      measurements.length.toString(),
                 ),
-                const _StatItem(
-                  label: 'Modules',
+                const _Stat(
+                  title: 'ماژول',
                   value: '8',
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            const Text(
-              'Foundation initialized',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
+            const LinearProgressIndicator(
+              value: .15,
+              minHeight: 7,
             ),
-
             const SizedBox(height: 8),
-
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: const LinearProgressIndicator(
-                value: .12,
-                minHeight: 7,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            const Text(
-              'هسته اولیه آماده توسعه ماژول‌های اصلی است.',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'ARCX foundation v0.2',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
               ),
             ),
           ],
@@ -531,17 +608,79 @@ class _ARCXShellState extends State<ARCXShell> {
   }
 }
 
-/* ============================================================
-   MODULE CARD
-   ============================================================ */
+class _VersionBadge extends StatelessWidget {
+  const _VersionBadge();
 
-class ModuleCard extends StatelessWidget {
-  final ModuleItem module;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Text(
+        'v0.2',
+        style: TextStyle(
+          color: Colors.greenAccent,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _Stat({
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.white54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModuleCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
   final VoidCallback onTap;
 
-  const ModuleCard({
-    super.key,
-    required this.module,
+  const _ModuleCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
     required this.onTap,
   });
 
@@ -564,10 +703,11 @@ class ModuleCard extends StatelessWidget {
                   color: Theme.of(context)
                       .colorScheme
                       .primaryContainer,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius:
+                      BorderRadius.circular(15),
                 ),
                 child: Icon(
-                  module.icon,
+                  icon,
                   color: Theme.of(context)
                       .colorScheme
                       .onPrimaryContainer,
@@ -575,17 +715,17 @@ class ModuleCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                module.title,
+                title,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
                   fontSize: 16,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                module.subtitle,
+                subtitle,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: Colors.white54,
                 ),
               ),
@@ -598,17 +738,318 @@ class ModuleCard extends StatelessWidget {
 }
 
 /* ============================================================
+   PROJECTS
+   ============================================================ */
+
+class ProjectsPage extends StatelessWidget {
+  final List<Project> projects;
+  final ValueChanged<Project> onCreate;
+  final ValueChanged<Project> onDelete;
+
+  const ProjectsPage({
+    super.key,
+    required this.projects,
+    required this.onCreate,
+    required this.onDelete,
+  });
+
+  void _create(BuildContext context) {
+    final name = TextEditingController();
+    final location = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('ساخت پروژه جدید'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(
+                labelText: 'نام پروژه',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: location,
+              decoration: const InputDecoration(
+                labelText: 'موقعیت پروژه',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty) return;
+
+              onCreate(
+                Project(
+                  id: 'ARCX-${DateTime.now().millisecondsSinceEpoch}',
+                  name: name.text.trim(),
+                  location: location.text.trim(),
+                  category: 'Architecture',
+                ),
+              );
+
+              Navigator.pop(context);
+            },
+            child: const Text('ساخت پروژه'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'پروژه‌ها',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: () => _create(context),
+        icon: const Icon(Icons.add),
+        label: const Text('پروژه جدید'),
+      ),
+      body: projects.isEmpty
+          ? const Center(
+              child: Text(
+                'هیچ پروژه‌ای وجود ندارد.',
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: projects.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
+              itemBuilder: (_, index) {
+                final project = projects[index];
+
+                return Card(
+                  child: ListTile(
+                    contentPadding:
+                        const EdgeInsets.all(12),
+                    leading: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer,
+                        borderRadius:
+                            BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.architecture,
+                      ),
+                    ),
+                    title: Text(
+                      project.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${project.location} • ${project.category}',
+                    ),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'delete') {
+                          onDelete(project);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('حذف پروژه'),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ProjectDetailPage(
+                            project: project,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+class ProjectDetailPage extends StatefulWidget {
+  final Project project;
+
+  const ProjectDetailPage({
+    super.key,
+    required this.project,
+  });
+
+  @override
+  State<ProjectDetailPage> createState() =>
+      _ProjectDetailPageState();
+}
+
+class _ProjectDetailPageState
+    extends State<ProjectDetailPage> {
+  final noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    noteController.dispose();
+    super.dispose();
+  }
+
+  void addNote() {
+    if (noteController.text.trim().isEmpty) return;
+
+    setState(() {
+      widget.project.notes.add(
+        NoteItem(
+          title: 'یادداشت پروژه',
+          text: noteController.text.trim(),
+        ),
+      );
+    });
+
+    noteController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final project = widget.project;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(project.name),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _InfoCard(
+            title: 'اطلاعات پروژه',
+            children: [
+              _InfoRow(
+                label: 'شناسه',
+                value: project.id,
+              ),
+              _InfoRow(
+                label: 'موقعیت',
+                value: project.location,
+              ),
+              _InfoRow(
+                label: 'نوع',
+                value: project.category,
+              ),
+              _InfoRow(
+                label: 'وضعیت',
+                value: project.status,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          _InfoCard(
+            title: 'اندازه‌گیری‌ها',
+            children: [
+              if (project.measurements.isEmpty)
+                const Text(
+                  'هنوز اندازه‌گیری‌ای ثبت نشده.',
+                  style: TextStyle(
+                    color: Colors.white54,
+                  ),
+                )
+              else
+                ...project.measurements.map(
+                  (m) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.straighten,
+                    ),
+                    title: Text(m.type),
+                    trailing: Text(
+                      '${m.value} ${m.unit}',
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          _InfoCard(
+            title: 'یادداشت‌ها',
+            children: [
+              TextField(
+                controller: noteController,
+                maxLines: 3,
+                decoration:
+                    const InputDecoration(
+                  hintText:
+                      'یادداشت پروژه را وارد کنید...',
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: addNote,
+                  icon: const Icon(Icons.add),
+                  label: const Text(
+                    'ثبت یادداشت',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...project.notes.reversed.map(
+                (note) => Card(
+                  child: ListTile(
+                    title: Text(note.title),
+                    subtitle: Text(note.text),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ============================================================
    FIELD TOOLS
    ============================================================ */
 
 class FieldToolsPage extends StatefulWidget {
   final List<Measurement> measurements;
-  final ValueChanged<Measurement> onMeasurementAdded;
+  final ValueChanged<Measurement> onSave;
 
   const FieldToolsPage({
     super.key,
     required this.measurements,
-    required this.onMeasurementAdded,
+    required this.onSave,
   });
 
   @override
@@ -616,94 +1057,99 @@ class FieldToolsPage extends StatefulWidget {
       _FieldToolsPageState();
 }
 
-class _FieldToolsPageState extends State<FieldToolsPage> {
-  final distanceController = TextEditingController();
-  final angleController = TextEditingController();
-  final lengthController = TextEditingController();
-  final widthController = TextEditingController();
+class _FieldToolsPageState
+    extends State<FieldToolsPage> {
+  final distance = TextEditingController();
+  final angle = TextEditingController();
+  final length = TextEditingController();
+  final width = TextEditingController();
 
   String distanceUnit = 'm';
 
   @override
   void dispose() {
-    distanceController.dispose();
-    angleController.dispose();
-    lengthController.dispose();
-    widthController.dispose();
+    distance.dispose();
+    angle.dispose();
+    length.dispose();
+    width.dispose();
     super.dispose();
   }
 
   void saveDistance() {
     final value =
-        double.tryParse(distanceController.text);
+        double.tryParse(distance.text);
 
     if (value == null) {
-      _message('مقدار فاصله را وارد کنید.');
+      _message('مقدار فاصله صحیح نیست.');
       return;
     }
 
-    widget.onMeasurementAdded(
+    widget.onSave(
       Measurement(
         type: 'Distance',
         value: value,
         unit: distanceUnit,
-        createdAt: DateTime.now(),
       ),
     );
 
-    distanceController.clear();
-    _message('فاصله ذخیره شد.');
+    distance.clear();
+    _message('اندازه‌گیری ذخیره شد.');
   }
 
   void saveAngle() {
     final value =
-        double.tryParse(angleController.text);
+        double.tryParse(angle.text);
 
     if (value == null) {
-      _message('زاویه را وارد کنید.');
+      _message('زاویه صحیح نیست.');
       return;
     }
 
-    widget.onMeasurementAdded(
+    widget.onSave(
       Measurement(
         type: 'Angle',
         value: value,
         unit: '°',
-        createdAt: DateTime.now(),
       ),
     );
 
-    angleController.clear();
+    angle.clear();
     _message('زاویه ذخیره شد.');
   }
 
   void calculateArea() {
-    final length =
-        double.tryParse(lengthController.text);
-    final width =
-        double.tryParse(widthController.text);
+    final l = double.tryParse(length.text);
+    final w = double.tryParse(width.text);
 
-    if (length == null || width == null) {
+    if (l == null || w == null) {
       _message('طول و عرض را وارد کنید.');
       return;
     }
 
-    final area = length * width;
+    final result = l * w;
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('مساحت'),
-        content: Text(
-          '${area.toStringAsFixed(2)} m²',
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+        title: const Text('نتیجه محاسبه'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('مساحت'),
+            const SizedBox(height: 10),
+            Text(
+              '${result.toStringAsFixed(2)} m²',
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () =>
+                Navigator.pop(context),
             child: const Text('بستن'),
           ),
         ],
@@ -713,7 +1159,10 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
 
   void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
+      SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -722,9 +1171,9 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Field Tools',
+          'ابزارهای میدانی',
           style: TextStyle(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ),
@@ -732,23 +1181,23 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'ابزارهای میدانی',
+            'Field Tools',
             style: TextStyle(
-              fontSize: 27,
+              fontSize: 28,
               fontWeight: FontWeight.w900,
             ),
           ),
-
-          const SizedBox(height: 6),
-
+          const SizedBox(height: 5),
           const Text(
-            'اندازه‌گیری و برداشت اطلاعات پروژه',
-            style: TextStyle(color: Colors.white54),
+            'برداشت و اندازه‌گیری در محل پروژه',
+            style: TextStyle(
+              color: Colors.white54,
+            ),
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
 
-          _ToolSection(
+          _ToolCard(
             icon: Icons.straighten,
             title: 'Distance',
             subtitle: 'اندازه‌گیری فاصله',
@@ -756,7 +1205,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: distanceController,
+                    controller: distance,
                     keyboardType:
                         const TextInputType.numberWithOptions(
                       decimal: true,
@@ -802,7 +1251,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
 
           const SizedBox(height: 12),
 
-          _ToolSection(
+          _ToolCard(
             icon: Icons.change_history,
             title: 'Angle',
             subtitle: 'زاویه‌یاب',
@@ -810,7 +1259,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: angleController,
+                    controller: angle,
                     keyboardType:
                         const TextInputType.numberWithOptions(
                       decimal: true,
@@ -824,7 +1273,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
                 const SizedBox(width: 10),
                 FilledButton(
                   onPressed: saveAngle,
-                  child: const Text('ذخیره'),
+                  child: const Text('ثبت'),
                 ),
               ],
             ),
@@ -832,7 +1281,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
 
           const SizedBox(height: 12),
 
-          _ToolSection(
+          _ToolCard(
             icon: Icons.crop_square,
             title: 'Area',
             subtitle: 'محاسبه مساحت',
@@ -842,7 +1291,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: lengthController,
+                        controller: length,
                         keyboardType:
                             const TextInputType.numberWithOptions(
                           decimal: true,
@@ -856,7 +1305,7 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        controller: widthController,
+                        controller: width,
                         keyboardType:
                             const TextInputType.numberWithOptions(
                           decimal: true,
@@ -869,13 +1318,13 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: calculateArea,
                     child: const Text(
-                      'محاسبه مساحت',
+                      'محاسبه',
                     ),
                   ),
                 ),
@@ -885,15 +1334,15 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
 
           const SizedBox(height: 12),
 
-          const _ToolSection(
+          const _ToolCard(
             icon: Icons.water_drop_outlined,
             title: 'Bubble Level',
-            subtitle: 'تراز حباب',
+            subtitle: 'تراز حباب با سنسور دستگاه',
           ),
 
           const SizedBox(height: 12),
 
-          const _ToolSection(
+          const _ToolCard(
             icon: Icons.screen_rotation_outlined,
             title: 'Inclinometer',
             subtitle: 'شیب‌سنج',
@@ -901,46 +1350,45 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
 
           const SizedBox(height: 12),
 
-          const _ToolSection(
+          const _ToolCard(
             icon: Icons.camera_alt_outlined,
             title: 'Camera Measure',
-            subtitle:
-                'اندازه‌گیری با دوربین و سنسور',
+            subtitle: 'اندازه‌گیری با دوربین',
           ),
 
           const SizedBox(height: 12),
 
-          const _ToolSection(
+          const _ToolCard(
             icon: Icons.architecture_outlined,
             title: 'Plan Sketch',
-            subtitle:
-                'طراحی ساده پلان در محل پروژه',
+            subtitle: 'ترسیم سریع پلان',
           ),
 
-          const SizedBox(height: 24),
-
           if (widget.measurements.isNotEmpty) ...[
+            const SizedBox(height: 25),
             const Text(
-              'اندازه‌گیری‌های ثبت‌شده',
+              'آخرین اندازه‌گیری‌ها',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 10),
-            ...widget.measurements.reversed.map(
-              (m) => Card(
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.analytics_outlined,
-                  ),
-                  title: Text(m.type),
-                  subtitle: Text(
-                    '${m.value} ${m.unit}',
+            ...widget.measurements.reversed
+                .take(10)
+                .map(
+                  (m) => Card(
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.analytics_outlined,
+                      ),
+                      title: Text(m.type),
+                      trailing: Text(
+                        '${m.value} ${m.unit}',
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
           ],
         ],
       ),
@@ -948,13 +1396,13 @@ class _FieldToolsPageState extends State<FieldToolsPage> {
   }
 }
 
-class _ToolSection extends StatelessWidget {
+class _ToolCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final Widget? child;
 
-  const _ToolSection({
+  const _ToolCard({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -973,8 +1421,8 @@ class _ToolSection extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 45,
+                  height: 45,
                   decoration: BoxDecoration(
                     color: Theme.of(context)
                         .colorScheme
@@ -993,7 +1441,7 @@ class _ToolSection extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1001,7 +1449,7 @@ class _ToolSection extends StatelessWidget {
                         subtitle,
                         style: const TextStyle(
                           color: Colors.white54,
-                          fontSize: 11,
+                          fontSize: 10,
                         ),
                       ),
                     ],
@@ -1021,286 +1469,93 @@ class _ToolSection extends StatelessWidget {
 }
 
 /* ============================================================
-   PROJECTS
-   ============================================================ */
-
-class ProjectsPage extends StatelessWidget {
-  final List<ARCXProject> projects;
-  final ValueChanged<ARCXProject> onProjectCreated;
-  final ValueChanged<ARCXProject> onProjectDeleted;
-
-  const ProjectsPage({
-    super.key,
-    required this.projects,
-    required this.onProjectCreated,
-    required this.onProjectDeleted,
-  });
-
-  void createProject(BuildContext context) {
-    final nameController = TextEditingController();
-    final locationController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('پروژه جدید'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'نام پروژه',
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: locationController,
-              decoration: const InputDecoration(
-                labelText: 'موقعیت',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('انصراف'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty) {
-                return;
-              }
-
-              final project = ARCXProject(
-                id: DateTime.now()
-                    .millisecondsSinceEpoch
-                    .toString(),
-                name: nameController.text.trim(),
-                location:
-                    locationController.text.trim(),
-                type: 'Architecture',
-                createdAt: DateTime.now(),
-              );
-
-              onProjectCreated(project);
-              Navigator.pop(context);
-            },
-            child: const Text('ساخت'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Projects',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => createProject(context),
-            icon: const Icon(Icons.add),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => createProject(context),
-        icon: const Icon(Icons.add),
-        label: const Text('پروژه جدید'),
-      ),
-      body: projects.isEmpty
-          ? const Center(
-              child: Text('هنوز پروژه‌ای ساخته نشده است.'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: projects.length,
-              itemBuilder: (context, index) {
-                final project = projects[index];
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.all(14),
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primaryContainer,
-                        borderRadius:
-                            BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.architecture,
-                      ),
-                    ),
-                    title: Text(
-                      project.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${project.location} • ${project.type}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline,
-                      ),
-                      onPressed: () {
-                        onProjectDeleted(project);
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-}
-
-/* ============================================================
    CALCULATORS
    ============================================================ */
 
-class CalculatorsPage extends StatefulWidget {
+class CalculatorsPage extends StatelessWidget {
   const CalculatorsPage({super.key});
-
-  @override
-  State<CalculatorsPage> createState() =>
-      _CalculatorsPageState();
-}
-
-class _CalculatorsPageState
-    extends State<CalculatorsPage> {
-  final a = TextEditingController();
-  final b = TextEditingController();
-
-  double? result;
-
-  void calculateArea() {
-    final x = double.tryParse(a.text);
-    final y = double.tryParse(b.text);
-
-    if (x == null || y == null) return;
-
-    setState(() {
-      result = x * y;
-    });
-  }
-
-  @override
-  void dispose() {
-    a.dispose();
-    b.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calculators'),
+        title: const Text('محاسبات'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'محاسبات',
+        children: const [
+          Text(
+            'Calculators',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 20),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'مساحت مستطیل',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  TextField(
-                    controller: a,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'طول',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: b,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'عرض',
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton(
-                    onPressed: calculateArea,
-                    child: const Text('محاسبه'),
-                  ),
-                  if (result != null) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      '${result!.toStringAsFixed(2)} m²',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const _SimpleModule(
+          SizedBox(height: 20),
+          _CalculatorTile(
             icon: Icons.square_foot,
             title: 'مساحت',
-            subtitle: 'محاسبه مساحت فضاها',
+            subtitle: 'مستطیل، مثلث، دایره و فضاها',
           ),
-          const _SimpleModule(
+          _CalculatorTile(
             icon: Icons.view_in_ar_outlined,
             title: 'حجم',
-            subtitle: 'محاسبه حجم',
+            subtitle: 'محاسبه حجم عناصر هندسی',
           ),
-          const _SimpleModule(
+          _CalculatorTile(
             icon: Icons.percent,
-            title: 'درصد و نسبت',
-            subtitle: 'محاسبات نسبتی',
+            title: 'درصد',
+            subtitle: 'درصد و نسبت',
           ),
-          const _SimpleModule(
-            icon: Icons.straighten,
+          _CalculatorTile(
+            icon: Icons.swap_horiz,
             title: 'تبدیل واحد',
-            subtitle: 'mm / cm / m / km',
+            subtitle: 'طول، مساحت، حجم و وزن',
+          ),
+          _CalculatorTile(
+            icon: Icons.architecture,
+            title: 'محاسبات معماری',
+            subtitle: 'سطح اشغال، تراکم و زیربنا',
+          ),
+          _CalculatorTile(
+            icon: Icons.construction,
+            title: 'مصالح',
+            subtitle: 'برآورد اولیه مصرف مصالح',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CalculatorTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CalculatorTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.all(12),
+        leading: Icon(icon, size: 28),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        subtitle: Text(subtitle),
+        trailing:
+            const Icon(Icons.chevron_left),
       ),
     );
   }
@@ -1317,7 +1572,7 @@ class PlansPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plans'),
+        title: const Text('طراحی پلان'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -1332,33 +1587,40 @@ class PlansPage extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'هسته طراحی پلان هوشمند ARCX',
-            style: TextStyle(color: Colors.white54),
+            style: TextStyle(
+              color: Colors.white54,
+            ),
           ),
-          SizedBox(height: 24),
-          _SimpleModule(
+          SizedBox(height: 22),
+          _CalculatorTile(
             icon: Icons.grid_4x4,
             title: 'Grid',
             subtitle: 'شبکه ترسیم',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.crop_square,
             title: 'Walls',
-            subtitle: 'ترسیم دیوار',
+            subtitle: 'ترسیم دیوارها',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.door_front_door_outlined,
             title: 'Doors',
-            subtitle: 'در و بازشو',
+            subtitle: 'درها و بازشوها',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.window_outlined,
             title: 'Windows',
-            subtitle: 'پنجره',
+            subtitle: 'پنجره‌ها',
           ),
-          _SimpleModule(
-            icon: Icons.square_foot,
+          _CalculatorTile(
+            icon: Icons.straighten,
             title: 'Dimensions',
             subtitle: 'اندازه‌گذاری',
+          ),
+          _CalculatorTile(
+            icon: Icons.edit,
+            title: 'Sketch',
+            subtitle: 'ترسیم آزاد',
           ),
         ],
       ),
@@ -1371,49 +1633,62 @@ class PlansPage extends StatelessWidget {
    ============================================================ */
 
 class MaterialsPage extends StatelessWidget {
-  const MaterialsPage({super.key});
+  final List<MaterialItem> materials;
+
+  const MaterialsPage({
+    super.key,
+    required this.materials,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Materials'),
+        title: const Text('مصالح و متریال'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          Text(
+        children: [
+          const Text(
             'Materials',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 20),
-          _SimpleModule(
-            icon: Icons.foundation,
-            title: 'Concrete',
-            subtitle: 'بتن',
+          const SizedBox(height: 8),
+          const Text(
+            'بانک مصالح و اطلاعات متریال',
+            style: TextStyle(
+              color: Colors.white54,
+            ),
           ),
-          _SimpleModule(
-            icon: Icons.view_agenda_outlined,
-            title: 'Steel',
-            subtitle: 'فولاد',
-          ),
-          _SimpleModule(
-            icon: Icons.layers_outlined,
-            title: 'Wood',
-            subtitle: 'چوب',
-          ),
-          _SimpleModule(
-            icon: Icons.texture,
-            title: 'Finishes',
-            subtitle: 'پوشش و نازک‌کاری',
-          ),
-          _SimpleModule(
-            icon: Icons.search,
-            title: 'Material Intelligence',
-            subtitle: 'جستجوی هوشمند متریال',
+          const SizedBox(height: 20),
+          ...materials.map(
+            (material) => Card(
+              margin:
+                  const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.layers_outlined,
+                ),
+                title: Text(
+                  material.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                subtitle: Text(
+                  '${material.category} • ${material.unit}',
+                ),
+                trailing: Text(
+                  material.price == 0
+                      ? '—'
+                      : material.price
+                          .toStringAsFixed(0),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1426,44 +1701,56 @@ class MaterialsPage extends StatelessWidget {
    ============================================================ */
 
 class DocumentationPage extends StatelessWidget {
-  const DocumentationPage({super.key});
+  final List<Project> projects;
+
+  const DocumentationPage({
+    super.key,
+    required this.projects,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Documentation'),
+        title: const Text('مستندسازی'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          Text(
+        children: [
+          const Text(
             'Documentation',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 20),
-          _SimpleModule(
-            icon: Icons.description_outlined,
-            title: 'Project Documents',
-            subtitle: 'اسناد پروژه',
-          ),
-          _SimpleModule(
+          const SizedBox(height: 20),
+          _CalculatorTile(
             icon: Icons.photo_library_outlined,
             title: 'Site Photos',
-            subtitle: 'تصاویر کارگاه',
+            subtitle: 'تصاویر کارگاه و پروژه',
           ),
-          _SimpleModule(
+          _CalculatorTile(
+            icon: Icons.description_outlined,
+            title: 'Documents',
+            subtitle: 'اسناد پروژه',
+          ),
+          _CalculatorTile(
             icon: Icons.note_alt_outlined,
             title: 'Notes',
-            subtitle: 'یادداشت‌ها',
+            subtitle: 'یادداشت‌های پروژه',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.checklist,
             title: 'Checklists',
-            subtitle: 'چک‌لیست‌ها',
+            subtitle: 'چک‌لیست‌های اجرایی',
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'پروژه‌های قابل مستندسازی: ${projects.length}',
+            style: const TextStyle(
+              color: Colors.white54,
+            ),
           ),
         ],
       ),
@@ -1476,79 +1763,28 @@ class DocumentationPage extends StatelessWidget {
    ============================================================ */
 
 class FinancePage extends StatefulWidget {
-  const FinancePage({super.key});
+  final List<FinanceTransaction> transactions;
+  final ValueChanged<FinanceTransaction> onAdd;
+
+  const FinancePage({
+    super.key,
+    required this.transactions,
+    required this.onAdd,
+  });
 
   @override
   State<FinancePage> createState() =>
       _FinancePageState();
 }
 
-class _FinancePageState extends State<FinancePage> {
-  double projectIncome = 0;
-  double projectExpense = 0;
-  double personalIncome = 0;
-  double personalExpense = 0;
+class _FinancePageState
+    extends State<FinancePage> {
+  void addTransaction() {
+    final title = TextEditingController();
+    final amount = TextEditingController();
 
-  @override
-  Widget build(BuildContext context) {
-    final projectBalance =
-        projectIncome - projectExpense;
-
-    final personalBalance =
-        personalIncome - personalExpense;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Finance'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addTransaction(context),
-        child: const Icon(Icons.add),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Finance',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'مالی پروژه و مالی شخصی کاملاً جدا',
-            style: TextStyle(color: Colors.white54),
-          ),
-          const SizedBox(height: 20),
-
-          _FinanceCard(
-            title: 'Project Finance',
-            subtitle: 'مالی پروژه‌ها',
-            balance: projectBalance,
-            income: projectIncome,
-            expense: projectExpense,
-          ),
-
-          const SizedBox(height: 12),
-
-          _FinanceCard(
-            title: 'Personal Finance',
-            subtitle: 'مالی شخصی',
-            balance: personalBalance,
-            income: personalIncome,
-            expense: personalExpense,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addTransaction(BuildContext context) {
-    final amountController = TextEditingController();
-
-    bool isProject = true;
-    bool isIncome = true;
+    bool income = true;
+    bool project = true;
 
     showDialog(
       context: context,
@@ -1560,31 +1796,39 @@ class _FinancePageState extends State<FinancePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: amountController,
+                  controller: title,
+                  decoration:
+                      const InputDecoration(
+                    labelText: 'عنوان',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: amount,
                   keyboardType:
                       const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
+                  decoration:
+                      const InputDecoration(
                     labelText: 'مبلغ',
                   ),
                 ),
-                const SizedBox(height: 12),
                 SwitchListTile(
-                  title: const Text('پروژه‌ای'),
-                  value: isProject,
+                  title: const Text('درآمد'),
+                  value: income,
                   onChanged: (v) {
                     setLocalState(() {
-                      isProject = v;
+                      income = v;
                     });
                   },
                 ),
                 SwitchListTile(
-                  title: const Text('درآمد'),
-                  value: isIncome,
+                  title: const Text('پروژه‌ای'),
+                  value: project,
                   onChanged: (v) {
                     setLocalState(() {
-                      isIncome = v;
+                      project = v;
                     });
                   },
                 ),
@@ -1598,30 +1842,27 @@ class _FinancePageState extends State<FinancePage> {
               ),
               FilledButton(
                 onPressed: () {
-                  final amount =
+                  final value =
                       double.tryParse(
-                    amountController.text,
+                    amount.text,
                   );
 
-                  if (amount == null) return;
+                  if (value == null ||
+                      title.text.trim().isEmpty) {
+                    return;
+                  }
 
-                  setState(() {
-                    if (isProject) {
-                      if (isIncome) {
-                        projectIncome += amount;
-                      } else {
-                        projectExpense += amount;
-                      }
-                    } else {
-                      if (isIncome) {
-                        personalIncome += amount;
-                      } else {
-                        personalExpense += amount;
-                      }
-                    }
-                  });
+                  widget.onAdd(
+                    FinanceTransaction(
+                      title: title.text.trim(),
+                      amount: value,
+                      income: income,
+                      projectRelated: project,
+                    ),
+                  );
 
                   Navigator.pop(context);
+                  setState(() {});
                 },
                 child: const Text('ثبت'),
               ),
@@ -1631,25 +1872,127 @@ class _FinancePageState extends State<FinancePage> {
       ),
     );
   }
+
+  double total({
+    required bool project,
+    required bool income,
+  }) {
+    return widget.transactions
+        .where(
+          (t) =>
+              t.projectRelated == project &&
+              t.income == income,
+        )
+        .fold(
+          0,
+          (sum, item) => sum + item.amount,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final projectIncome =
+        total(project: true, income: true);
+
+    final projectExpense =
+        total(project: true, income: false);
+
+    final personalIncome =
+        total(project: false, income: true);
+
+    final personalExpense =
+        total(project: false, income: false);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('مالی'),
+      ),
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: addTransaction,
+        icon: const Icon(Icons.add),
+        label: const Text('تراکنش'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Finance',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'مالی پروژه و شخصی از هم جدا هستند.',
+            style: TextStyle(
+              color: Colors.white54,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _FinanceSummary(
+            title: 'مالی پروژه',
+            income: projectIncome,
+            expense: projectExpense,
+          ),
+
+          const SizedBox(height: 12),
+
+          _FinanceSummary(
+            title: 'مالی شخصی',
+            income: personalIncome,
+            expense: personalExpense,
+          ),
+
+          const SizedBox(height: 20),
+
+          if (widget.transactions.isNotEmpty)
+            ...widget.transactions.reversed.map(
+              (transaction) => Card(
+                margin:
+                    const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Icon(
+                    transaction.income
+                        ? Icons.arrow_downward
+                        : Icons.arrow_upward,
+                  ),
+                  title: Text(transaction.title),
+                  subtitle: Text(
+                    transaction.projectRelated
+                        ? 'پروژه‌ای'
+                        : 'شخصی',
+                  ),
+                  trailing: Text(
+                    transaction.amount
+                        .toStringAsFixed(0),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-class _FinanceCard extends StatelessWidget {
+class _FinanceSummary extends StatelessWidget {
   final String title;
-  final String subtitle;
-  final double balance;
   final double income;
   final double expense;
 
-  const _FinanceCard({
+  const _FinanceSummary({
     required this.title,
-    required this.subtitle,
-    required this.balance,
     required this.income,
     required this.expense,
   });
 
   @override
   Widget build(BuildContext context) {
+    final balance = income - expense;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -1661,25 +2004,18 @@ class _FinanceCard extends StatelessWidget {
               title,
               style: const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              balance.toStringAsFixed(0),
-              style: const TextStyle(
-                fontSize: 28,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 15),
+            Text(
+              'مانده: ${balance.toStringAsFixed(0)}',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -1712,7 +2048,7 @@ class IntelligencePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Intelligence'),
+        title: const Text('هوش معماری'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -1726,29 +2062,36 @@ class IntelligencePage extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'لایه هوشمند معماری و مهندسی',
-            style: TextStyle(color: Colors.white54),
+            'لایه هوشمند سیستم',
+            style: TextStyle(
+              color: Colors.white54,
+            ),
           ),
-          SizedBox(height: 24),
-          _SimpleModule(
+          SizedBox(height: 22),
+          _CalculatorTile(
             icon: Icons.auto_awesome,
             title: 'AI Assistant',
-            subtitle: 'دستیار معماری',
+            subtitle: 'دستیار معماری و مهندسی',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.analytics_outlined,
             title: 'Project Analysis',
             subtitle: 'تحلیل پروژه',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.lightbulb_outline,
             title: 'Design Suggestions',
-            subtitle: 'پیشنهاد طراحی',
+            subtitle: 'پیشنهادهای طراحی',
           ),
-          _SimpleModule(
+          _CalculatorTile(
             icon: Icons.warning_amber_outlined,
             title: 'Risk Detection',
-            subtitle: 'شناسایی ریسک',
+            subtitle: 'تشخیص ریسک',
+          ),
+          _CalculatorTile(
+            icon: Icons.auto_graph,
+            title: 'Optimization',
+            subtitle: 'بهینه‌سازی',
           ),
         ],
       ),
@@ -1767,7 +2110,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('تنظیمات'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -1782,110 +2125,33 @@ class SettingsPage extends StatelessWidget {
           SizedBox(height: 20),
           ListTile(
             leading: Icon(Icons.language),
-            title: Text('Language'),
+            title: Text('زبان'),
             subtitle: Text('فارسی / English'),
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode_outlined),
+            title: Text('ظاهر'),
+            subtitle: Text('Dark Mode'),
+          ),
+          ListTile(
+            leading: Icon(Icons.storage_outlined),
+            title: Text('Storage'),
+            subtitle: Text(
+              'هسته ذخیره‌سازی محلی — مرحله بعد',
+            ),
           ),
           ListTile(
             leading: Icon(Icons.cloud_outlined),
             title: Text('Cloud Sync'),
-            subtitle: Text('آماده توسعه'),
-          ),
-          ListTile(
-            leading: Icon(Icons.storage_outlined),
-            title: Text('Local Storage'),
-            subtitle: Text('ذخیره‌سازی محلی'),
+            subtitle: Text(
+              'همگام‌سازی ابری — مرحله بعد',
+            ),
           ),
           ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('ARCX Version'),
-            subtitle: Text('0.1 Foundation'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   SIMPLE MODULE
-   ============================================================ */
-
-class _SimpleModule extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _SimpleModule({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(10),
-        leading: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .primaryContainer,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Icon(icon),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Text(subtitle),
-        trailing: const Icon(
-          Icons.chevron_right,
-        ),
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   STAT
-   ============================================================ */
-
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _StatItem({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Colors.white54,
+            title: Text('ARCX'),
+            subtitle: Text(
+              'Architecture & Engineering Intelligence',
             ),
           ),
         ],
@@ -1898,12 +2164,12 @@ class _StatItem extends StatelessWidget {
    SEARCH
    ============================================================ */
 
-class ARCXSearchDelegate
+class ModuleSearchDelegate
     extends SearchDelegate<String> {
-  final List<ModuleItem> modules;
+  final List<_DashboardModule> modules;
   final ValueChanged<String> onSelected;
 
-  ARCXSearchDelegate({
+  ModuleSearchDelegate({
     required this.modules,
     required this.onSelected,
   });
@@ -1915,9 +2181,7 @@ class ARCXSearchDelegate
     return [
       if (query.isNotEmpty)
         IconButton(
-          onPressed: () {
-            query = '';
-          },
+          onPressed: () => query = '',
           icon: const Icon(Icons.clear),
         ),
     ];
@@ -1937,20 +2201,20 @@ class ARCXSearchDelegate
   Widget buildResults(
     BuildContext context,
   ) {
-    return _results(context);
+    return _buildResults();
   }
 
   @override
   Widget buildSuggestions(
     BuildContext context,
   ) {
-    return _results(context);
+    return _buildResults();
   }
 
-  Widget _results(BuildContext context) {
-    final results = modules.where((module) {
-      final q = query.toLowerCase();
+  Widget _buildResults() {
+    final q = query.toLowerCase();
 
+    final results = modules.where((module) {
       return module.title
               .toLowerCase()
               .contains(q) ||
@@ -1972,6 +2236,79 @@ class ARCXSearchDelegate
           },
         );
       },
+    );
+  }
+}
+
+/* ============================================================
+   INFO COMPONENTS
+   ============================================================ */
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _InfoCard({
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+            ),
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.left,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
