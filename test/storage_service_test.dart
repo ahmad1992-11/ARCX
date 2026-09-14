@@ -1,4 +1,4 @@
- import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:arcx/models/finance_transaction.dart';
@@ -18,32 +18,29 @@ void main() {
       SharedPreferences.setMockInitialValues({});
 
       storage = StorageService.instance;
+
       await storage.initialize();
     });
 
-    test('saves and loads a project', () async {
+    test('saves and reads a project', () async {
       final project = Project(
         id: 'test-project-1',
         name: 'پروژه تست ARCX',
-        description: 'پروژه آزمایشی ذخیره‌سازی',
         location: 'تهران',
-        clientName: 'کارفرمای تست',
-        createdAt: DateTime(2026, 9, 15),
+        category: 'مسکونی',
       );
 
       await storage.saveProject(project);
 
-      final loaded = storage.projects.firstWhere(
-        (item) => item.id == project.id,
-      );
+      final loaded = storage.getProject('test-project-1');
 
-      expect(loaded.name, equals(project.name));
-      expect(loaded.description, equals(project.description));
-      expect(loaded.location, equals(project.location));
-      expect(loaded.clientName, equals(project.clientName));
+      expect(loaded, isNotNull);
+      expect(loaded!.name, equals('پروژه تست ARCX'));
+      expect(loaded.location, equals('تهران'));
+      expect(loaded.category, equals('مسکونی'));
     });
 
-    test('saves a finance transaction', () async {
+    test('saves and reads a finance transaction', () async {
       final transaction = FinanceTransaction(
         id: 'transaction-test-1',
         title: 'هزینه تست',
@@ -57,18 +54,20 @@ void main() {
 
       await storage.saveTransaction(transaction);
 
-      final loaded = storage.transactions.firstWhere(
-        (item) => item.id == transaction.id,
-      );
+      final loaded = storage
+          .getTransactions()
+          .firstWhere(
+            (item) => item.id == transaction.id,
+          );
 
-      expect(loaded.title, equals(transaction.title));
-      expect(loaded.amount, equals(transaction.amount));
-      expect(loaded.income, equals(false));
-      expect(loaded.projectRelated, equals(true));
+      expect(loaded.title, equals('هزینه تست'));
+      expect(loaded.amount, equals(250000));
+      expect(loaded.income, isFalse);
+      expect(loaded.projectRelated, isTrue);
       expect(loaded.projectId, equals('test-project-1'));
     });
 
-    test('saves a material', () async {
+    test('saves and reads a material', () async {
       final material = MaterialItem(
         id: 'material-test-1',
         name: 'بتن C30',
@@ -82,17 +81,19 @@ void main() {
 
       await storage.saveMaterial(material);
 
-      final loaded = storage.materials.firstWhere(
-        (item) => item.id == material.id,
-      );
+      final loaded = storage
+          .getMaterials()
+          .firstWhere(
+            (item) => item.id == material.id,
+          );
 
-      expect(loaded.name, equals(material.name));
-      expect(loaded.category, equals(material.category));
-      expect(loaded.unit, equals(material.unit));
-      expect(loaded.price, equals(material.price));
+      expect(loaded.name, equals('بتن C30'));
+      expect(loaded.category, equals('سازه'));
+      expect(loaded.unit, equals('m³'));
+      expect(loaded.price, equals(5000000));
     });
 
-    test('saves a project element', () async {
+    test('saves and reads a project element', () async {
       final element = ProjectElement(
         id: 'element-test-1',
         projectId: 'test-project-1',
@@ -109,24 +110,35 @@ void main() {
         },
       );
 
-      await storage.saveElement(element);
+      await storage.saveProjectElement(element);
 
-      final loaded = storage.elements.firstWhere(
-        (item) => item.id == element.id,
+      final loaded = storage
+          .getProjectElements('test-project-1')
+          .firstWhere(
+            (item) => item.id == element.id,
+          );
+
+      expect(loaded.name, equals('دیوار تست'));
+      expect(
+        loaded.type,
+        equals(ProjectElementType.wall),
       );
-
-      expect(loaded.name, equals(element.name));
-      expect(loaded.type, equals(ProjectElementType.wall));
       expect(loaded.x, equals(10));
       expect(loaded.y, equals(20));
       expect(loaded.width, equals(500));
       expect(loaded.height, equals(300));
       expect(loaded.rotation, equals(90));
-      expect(loaded.properties['thickness'], equals(20));
-      expect(loaded.properties['material'], equals('brick'));
+      expect(
+        loaded.properties['thickness'],
+        equals(20),
+      );
+      expect(
+        loaded.properties['material'],
+        equals('brick'),
+      );
     });
 
-    test('saves user profile', () async {
+    test('saves and reads user profile', () async {
       final profile = UserProfile(
         id: 'user-test-1',
         name: 'ARCX Test User',
@@ -139,24 +151,22 @@ void main() {
 
       await storage.saveUserProfile(profile);
 
-      final loaded = storage.userProfile;
+      final loaded = storage.getUserProfile();
 
       expect(loaded, isNotNull);
-      expect(loaded!.id, equals(profile.id));
-      expect(loaded.name, equals(profile.name));
-      expect(loaded.email, equals(profile.email));
-      expect(loaded.profession, equals(profile.profession));
-      expect(loaded.city, equals(profile.city));
+      expect(loaded!.id, equals('user-test-1'));
+      expect(loaded.name, equals('ARCX Test User'));
+      expect(loaded.email, equals('test@arcx.local'));
+      expect(loaded.profession, equals('Architect'));
+      expect(loaded.city, equals('Tehran'));
     });
 
     test('deleting a project also deletes its elements', () async {
       final project = Project(
         id: 'delete-project-test',
         name: 'پروژه حذف',
-        description: '',
         location: '',
-        clientName: '',
-        createdAt: DateTime(2026, 9, 15),
+        category: 'تست',
       );
 
       final element = ProjectElement(
@@ -167,34 +177,38 @@ void main() {
       );
 
       await storage.saveProject(project);
-      await storage.saveElement(element);
+      await storage.saveProjectElement(element);
 
       expect(
-        storage.elements.any((item) => item.projectId == project.id),
+        storage
+            .getProjectElements(project.id)
+            .any(
+              (item) => item.id == element.id,
+            ),
         isTrue,
       );
 
       await storage.deleteProject(project.id);
 
       expect(
-        storage.projects.any((item) => item.id == project.id),
-        isFalse,
+        storage.getProject(project.id),
+        isNull,
       );
 
       expect(
-        storage.elements.any((item) => item.projectId == project.id),
-        isFalse,
+        storage.getProjectElements(project.id),
+        isEmpty,
       );
     });
 
-    test('clearAll removes persisted ARCX data', () async {
+    test('clearAll removes ARCX data', () async {
       await storage.clearAll();
 
-      expect(storage.projects, isEmpty);
-      expect(storage.transactions, isEmpty);
-      expect(storage.materials, isEmpty);
-      expect(storage.elements, isEmpty);
-      expect(storage.userProfile, isNull);
+      expect(storage.getProjects(), isEmpty);
+      expect(storage.getTransactions(), isEmpty);
+      expect(storage.getMaterials(), isEmpty);
+      expect(storage.getProjectElements('test-project-1'), isEmpty);
+      expect(storage.getUserProfile(), isNull);
     });
   });
 }
