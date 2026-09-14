@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
-void main() {
+import 'services/storage_service.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await StorageService.instance.initialize();
+
   runApp(const ARCXApp());
 }
-
 /* ============================================================
    ARCX
    Architecture & Engineering Intelligence
