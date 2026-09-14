@@ -2,19 +2,17 @@ import '../models/material.dart';
 import 'storage_service.dart';
 
 class MaterialService {
-  static final MaterialService instance =
-      MaterialService._internal();
+  static final MaterialService instance = MaterialService._internal();
 
   MaterialService._internal();
 
-  final StorageService _storage =
-      StorageService.instance;
+  final StorageService _storage = StorageService.instance;
 
-  List<Material> getAll() {
+  List<MaterialItem> getAll() {
     return _storage.getMaterials();
   }
 
-  Future<void> save(Material material) async {
+  Future<void> save(MaterialItem material) async {
     await _storage.saveMaterial(material);
   }
 
