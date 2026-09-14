@@ -12,14 +12,13 @@ void main() {
       final original = Project(
         id: 'project-1',
         name: 'پروژه معماری',
-        description: 'تست مدل پروژه',
         location: 'کرج',
-        clientName: 'کارفرما',
+        category: 'مسکونی',
+        status: 'Active',
         createdAt: DateTime(2026, 9, 15),
         measurements: [
           Measurement(
-            id: 'measurement-1',
-            title: 'طول زمین',
+            type: 'طول زمین',
             value: 25.5,
             unit: 'm',
             date: DateTime(2026, 9, 15),
@@ -27,8 +26,8 @@ void main() {
         ],
         notes: [
           NoteItem(
-            id: 'note-1',
-            text: 'یادداشت تست',
+            title: 'یادداشت تست',
+            text: 'یادداشت آزمایشی ARCX',
             date: DateTime(2026, 9, 15),
           ),
         ],
@@ -39,12 +38,19 @@ void main() {
       expect(restored.id, equals(original.id));
       expect(restored.name, equals(original.name));
       expect(restored.location, equals(original.location));
+      expect(restored.category, equals(original.category));
 
       expect(restored.measurements.length, equals(1));
+      expect(restored.measurements.first.type, equals('طول زمین'));
       expect(restored.measurements.first.value, equals(25.5));
+      expect(restored.measurements.first.unit, equals('m'));
 
       expect(restored.notes.length, equals(1));
-      expect(restored.notes.first.text, equals('یادداشت تست'));
+      expect(restored.notes.first.title, equals('یادداشت تست'));
+      expect(
+        restored.notes.first.text,
+        equals('یادداشت آزمایشی ARCX'),
+      );
     });
 
     test('FinanceTransaction round trip', () {
@@ -59,14 +65,17 @@ void main() {
         description: 'تست مالی',
       );
 
-      final restored = FinanceTransaction.fromJson(original.toJson());
+      final restored = FinanceTransaction.fromJson(
+        original.toJson(),
+      );
 
       expect(restored.id, equals(original.id));
       expect(restored.title, equals(original.title));
       expect(restored.amount, equals(original.amount));
-      expect(restored.income, equals(true));
-      expect(restored.projectRelated, equals(true));
+      expect(restored.income, isTrue);
+      expect(restored.projectRelated, isTrue);
       expect(restored.projectId, equals('project-1'));
+      expect(restored.description, equals('تست مالی'));
     });
 
     test('Material round trip', () {
@@ -81,13 +90,16 @@ void main() {
         description: 'تست متریال',
       );
 
-      final restored = MaterialItem.fromJson(original.toJson());
+      final restored = MaterialItem.fromJson(
+        original.toJson(),
+      );
 
       expect(restored.id, equals(original.id));
       expect(restored.name, equals(original.name));
       expect(restored.category, equals(original.category));
       expect(restored.unit, equals(original.unit));
       expect(restored.price, equals(original.price));
+      expect(restored.description, equals(original.description));
     });
 
     test('ProjectElement round trip', () {
@@ -107,19 +119,30 @@ void main() {
         },
       );
 
-      final restored = ProjectElement.fromJson(original.toJson());
+      final restored = ProjectElement.fromJson(
+        original.toJson(),
+      );
 
       expect(restored.id, equals(original.id));
       expect(restored.projectId, equals(original.projectId));
       expect(restored.name, equals(original.name));
-      expect(restored.type, equals(ProjectElementType.window));
+      expect(
+        restored.type,
+        equals(ProjectElementType.window),
+      );
       expect(restored.x, equals(100));
       expect(restored.y, equals(200));
       expect(restored.width, equals(120));
       expect(restored.height, equals(150));
       expect(restored.rotation, equals(15));
-      expect(restored.properties['material'], equals('aluminium'));
-      expect(restored.properties['doubleGlazed'], equals(true));
+      expect(
+        restored.properties['material'],
+        equals('aluminium'),
+      );
+      expect(
+        restored.properties['doubleGlazed'],
+        equals(true),
+      );
     });
 
     test('UserProfile round trip', () {
@@ -133,7 +156,9 @@ void main() {
         city: 'Karaj',
       );
 
-      final restored = UserProfile.fromJson(original.toJson());
+      final restored = UserProfile.fromJson(
+        original.toJson(),
+      );
 
       expect(restored.id, equals(original.id));
       expect(restored.name, equals(original.name));
