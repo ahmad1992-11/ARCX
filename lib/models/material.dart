@@ -33,7 +33,9 @@ class MaterialItem {
     };
   }
 
-  factory MaterialItem.fromJson(Map<String, dynamic> json) {
+  factory MaterialItem.fromJson(
+    Map<String, dynamic> json,
+  ) {
     return MaterialItem(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
