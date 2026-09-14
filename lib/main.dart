@@ -80,14 +80,11 @@ class ARCXRoot extends StatefulWidget {
 class _ARCXRootState extends State<ARCXRoot> {
   int tab = 0;
 
-  final projectController =
-      ProjectContextController.instance;
+  final projectController = ProjectContextController.instance;
 
-  final financeController =
-      FinanceController.instance;
+  final financeController = FinanceController.instance;
 
-  final materialController =
-      MaterialController.instance;
+  final materialController = MaterialController.instance;
 
   @override
   void initState() {
@@ -167,26 +164,23 @@ class _ARCXRootState extends State<ARCXRoot> {
   Future<void> saveMeasurement(
     Measurement measurement,
   ) async {
-    final activeProject =
-        projectController.activeProject;
+    var activeProject = projectController.activeProject;
 
-    if (activeProject == null) {
-      if (projectController.projects.isNotEmpty) {
-        await projectController.selectProject(
-          projectController.projects.first.id,
-        );
-      }
+    if (activeProject == null &&
+        projectController.projects.isNotEmpty) {
+      await projectController.selectProject(
+        projectController.projects.first.id,
+      );
+
+      activeProject = projectController.activeProject;
     }
 
-    final project =
-        projectController.activeProject;
-
-    if (project == null) {
+    if (activeProject == null) {
       return;
     }
 
     await projectController.addMeasurement(
-      projectId: project.id,
+      projectId: activeProject.id,
       type: measurement.type,
       value: measurement.value,
       unit: measurement.unit,
@@ -202,11 +196,9 @@ class _ARCXRootState extends State<ARCXRoot> {
         materialController,
       ]),
       builder: (context, _) {
-        final projects =
-            projectController.projects;
+        final projects = projectController.projects;
 
-        final measurements =
-            allMeasurements;
+        final measurements = allMeasurements;
 
         final pages = [
           DashboardPage(
@@ -232,8 +224,7 @@ class _ARCXRootState extends State<ARCXRoot> {
             body: SafeArea(
               child: pages[tab],
             ),
-            bottomNavigationBar:
-                NavigationBar(
+            bottomNavigationBar: NavigationBar(
               selectedIndex: tab,
               onDestinationSelected: (value) {
                 setState(() {
@@ -451,8 +442,7 @@ class DashboardPage extends StatelessWidget {
                   onPressed: () {
                     showSearch(
                       context: context,
-                      delegate:
-                          ModuleSearchDelegate(
+                      delegate: ModuleSearchDelegate(
                         modules: modules,
                         onSelected: onModuleTap,
                       ),
@@ -478,8 +468,7 @@ class DashboardPage extends StatelessWidget {
             horizontal: 16,
           ),
           sliver: SliverGrid(
-            delegate:
-                SliverChildBuilderDelegate(
+            delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final module = modules[index];
 
@@ -487,8 +476,7 @@ class DashboardPage extends StatelessWidget {
                   title: module.title,
                   subtitle: module.subtitle,
                   icon: module.icon,
-                  onTap: () =>
-                      onModuleTap(
+                  onTap: () => onModuleTap(
                     module.title,
                   ),
                 );
@@ -591,13 +579,11 @@ class _ProjectOverview extends StatelessWidget {
               children: [
                 _Stat(
                   title: 'پروژه',
-                  value: projects.length
-                      .toString(),
+                  value: projects.length.toString(),
                 ),
                 _Stat(
                   title: 'اندازه‌گیری',
-                  value: measurements.length
-                      .toString(),
+                  value: measurements.length.toString(),
                 ),
                 const _Stat(
                   title: 'ماژول',
@@ -766,10 +752,12 @@ class _ModuleCard extends StatelessWidget {
 
 class ProjectsPage extends StatelessWidget {
   final List<Project> projects;
+
   final Future<void> Function({
     required String name,
     required String location,
   }) onCreate;
+
   final Future<void> Function(Project) onDelete;
 
   const ProjectsPage({
@@ -971,10 +959,17 @@ class _ProjectDetailPageState
   @override
   void initState() {
     super.initState();
+    _selectProject();
+  }
 
-    controller.selectProject(
+  Future<void> _selectProject() async {
+    await controller.selectProject(
       widget.project.id,
     );
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -1128,6 +1123,7 @@ class _ProjectDetailPageState
 class FieldToolsPage
     extends StatefulWidget {
   final List<Measurement> measurements;
+
   final Future<void> Function(
     Measurement,
   ) onSave;
@@ -2105,7 +2101,7 @@ class _FinancePageState
                           .isNotEmpty)
                     DropdownButtonFormField<
                         String>(
-                      value: projectId,
+                      initialValue: projectId,
                       decoration:
                           const InputDecoration(
                         labelText:
